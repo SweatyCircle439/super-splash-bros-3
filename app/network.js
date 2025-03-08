@@ -45,12 +45,11 @@ const isPortAvailable = (port) => {
  * @returns {boolean}
  */
 const isValidIP = (ip) => {
-    let error = 0;
     for (let i=0; i<ip.length; i++) {
         ip[i] = parseInt(ip[i]);
-        if (isNaN(ip[i]) || ip[i] < 0 || ip[i] >= 255) error++;
+        if (isNaN(ip[i]) || ip[i] < 0 || ip[i] >= 255) return false;
     }
-    return (error === 0);
+    return true;
 };
 
 module.exports = {port, getIPs, isPortAvailable, isValidIP};
