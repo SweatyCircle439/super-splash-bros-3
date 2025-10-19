@@ -81,14 +81,14 @@ Super Splash Bros 2 can be played in three different modes:
     > **Note:** A beefy computer is recommended when playing on CHAOS difficulty, because of the many attacks, rockets and power-ups.
 
 ## Themes
-Super Splash Bros 2 can be played in 6 various themes:
+Super Splash Bros 2 can be played in 7 various themes:
 - Daylight (the original Splash theme);
 - Sunset;
 - Night;
 - Synthwave;
 - Foggy;
 - Lava;
-- Slime (new!).
+- Slime.
 
 Note that the default theme should be changed in the Settings menu. When you are about to start a game, you can also change the theme, but it will only apply to that game and will switch back to the default theme when the game has ended. 
 
