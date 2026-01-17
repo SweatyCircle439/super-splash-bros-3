@@ -20,6 +20,29 @@ const Geyser = require("../class/game/Geyser");
 const Fish = require("../class/game/Fish");
 const Supply = require("../class/game/Supply");
 
+let rate = 60;
+let argvprom;
+if (typeof window !== "undefined") {
+    console.log("running in preload");
+    document.addEventListener("DOMContentLoaded", _ => {
+        argvprom = ipcRenderer.invoke("get-argv").then(
+            /**
+             * @param {string[]} _argv
+             */
+            _argv => {
+                argv = _argv;
+                console.log(argv);
+                for (const arg of argv) {
+                    if (arg.startsWith("--game-rate=")) {
+                        rate = parseInt(arg.split("=")[1]);
+                        console.log(rate);
+                    }
+                }
+            }
+        );
+    });
+}
+
 const state = {
     MAIN_MENU: 0,
     PLAY_MENU: 1,
@@ -967,7 +990,7 @@ Button.items = [
         y: () => c.height(1/2) + Button.height + 200,
         disabled: true,
         onclick: function() {
-            if (!network.isValidIP(getEnteredIP()) && !Input.getInputById("LANHostName").value.trim()) {
+            if (!Input.getInputById("LANHostName").value.trim() && !network.isValidIP(getEnteredIP())) {
                 connectionMessage.show("Invalid IP address or hostname!", theme.colors.error.foreground, 3);
             } else {
                 setConnectElementsState(true);
@@ -1952,8 +1975,9 @@ setInterval(() => {
     smokeTime++;
 }, 1000 / 100);
 
-addEventListener("DOMContentLoaded", () => {
+addEventListener("DOMContentLoaded", async () => {
     // setInterval(c.updateRC, 1000/120);
+    await argvprom;
 
     c.init();
 
@@ -3106,8 +3130,9 @@ addEventListener("DOMContentLoaded", () => {
         }
     };
 
+    setInterval(update, 1000 / rate);
+
     const loop = () => {
-        update();
         draw();
         c.updateRC(screenShake.x, screenShake.y);
         requestAnimationFrame(loop);

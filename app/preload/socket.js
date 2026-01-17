@@ -72,9 +72,11 @@ const parse = (data) => {
  * }} options
  */
 const open = (options) => {
-    const url = new URL(options.ip);
-    if (!url.protocol.startsWith("ws")) url.protocol = "ws:";
-    if (!url.port) url.port = port;
+    const url = new URL(options.ip.includes("://")? options.ip : `ws://${options.ip}`);
+    if (!url.port) url.port = port.toString();
+    if (!url.protocol.startsWith("ssb3")) url.protocol = "ssb3:"
+    url.protocol = `ws${url.protocol.substring(4)}`;
+    console.log(url.href);
     ws = new WebSocket(url.href);
 
     const isHost = (options.ip === "127.0.0.1");
