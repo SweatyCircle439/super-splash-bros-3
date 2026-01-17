@@ -6,21 +6,49 @@ const { initial } = require("../class/ui/Button");
 const filters = [];
 
 /** @type {HTMLCanvasElement} */
-let canvas;
+let realCanvas;
 /** @type {CanvasRenderingContext2D} */
-let c;
+let realC;
 
+const canvas = new OffscreenCanvas(innerWidth, innerHeight);
+const c = canvas.getContext("2d");
+const smokeCanvas = new OffscreenCanvas(innerWidth, innerHeight);
+const smokeC = smokeCanvas.getContext("2d");
+const uiCanvas = new OffscreenCanvas(innerWidth, innerHeight);
+const uiC = uiCanvas.getContext("2d");
+const platformCanvas = new OffscreenCanvas(innerWidth, innerHeight);
+const platformC = platformCanvas.getContext("2d");
+const waterCanvas = new OffscreenCanvas(innerWidth, innerHeight);
+const waterC = waterCanvas.getContext("2d");
+const backgroundCanvas = new OffscreenCanvas(innerWidth, innerHeight);
+const backgroundC = backgroundCanvas.getContext("2d");
+const fastUiCanvas = new OffscreenCanvas(innerWidth, innerHeight);
+const fastUiC = fastUiCanvas.getContext("2d");
+const allContexts = [c, smokeC, uiC, platformC, waterC, backgroundC, fastUiC];
 
 const update = () => {
-    canvas.width = innerWidth;
-    canvas.height = innerHeight;
+    canvas.width = backgroundCanvas.width =
+        waterCanvas.width = 
+        platformCanvas.width = 
+        uiCanvas.width = 
+        smokeCanvas.width = 
+        realCanvas.width = 
+        innerWidth;
+    canvas.height =
+        backgroundCanvas.height =
+        waterCanvas.height =
+        platformCanvas.height = 
+        uiCanvas.height = 
+        smokeCanvas.height = 
+        realCanvas.height = 
+        innerHeight;
     generate.smoke();
 }
 
 /** Initiate the canvas. Only call this when the DOM is loaded! */
 const init = () => {
-    canvas = document.querySelector("canvas");
-    c = canvas.getContext("2d");
+    realCanvas = document.querySelector("canvas");
+    realC = realCanvas.getContext("2d");
 
     addEventListener("load", update);
     addEventListener("resize", update);
@@ -45,7 +73,7 @@ const height = (factor = 1) => {
 };
 
 /** Generate and export a screenshot of the canvas. */
-const screenshot = (filename) => canvas.toBlob(img => {
+const screenshot = (filename) => realCanvas.toBlob(img => {
     const a = document.createElement("a");
     a.href = URL.createObjectURL(img);
     a.download = filename;
@@ -58,12 +86,16 @@ const screenshot = (filename) => canvas.toBlob(img => {
 /** Clears the entire canvas. */
 const clear = () => {
     c.clearRect(0, 0, width(), height());
+    waterC.clearRect(0, 0, width(), height());
+    fastUiC.clearRect(0, 0, width(), height());
 };
 
 let smokeProperties = {
-    particleCount: 1800,
+    particleCount: 600,
     particles: []
 };
+
+let waterBehindUI = false;
 
 const options = {
     /**
@@ -71,7 +103,9 @@ const options = {
      * @param {number} opacity
      */
     setOpacity: (opacity = 1) => {
-        c.globalAlpha = opacity;
+        for (const c of allContexts) {
+            c.globalAlpha = opacity;
+        }
     },
     filter: {
         /**
@@ -80,7 +114,9 @@ const options = {
          */
         add: (...newFilters) => {
             filters.push(...newFilters);
-            c.filter = (filters.length === 0) ? "none" : filters.join(" ");
+            for (const c of allContexts) {
+                c.filter = (filters.length === 0) ? "none" : filters.join(" ");
+            }
         },
         /**
          * Remove filters and apply them.
@@ -93,7 +129,9 @@ const options = {
                     else j++;
                 }
             }
-            c.filter = (filters.length === 0) ? "none" : filters.join(" ");
+            for (const c of allContexts) {
+                c.filter = (filters.length === 0) ? "none" : filters.join(" ");
+            }
         }
     },
     /**
@@ -104,10 +142,12 @@ const options = {
      * @param {number} y
      */
     setShadow: (color = "transparent", blur = 0, x = 0, y = 0) => {
-        c.shadowColor = color;
-        c.shadowBlur = blur;
-        c.shadowOffsetX = x;
-        c.shadowOffsetY = y;
+        for (const c of allContexts) {
+            c.shadowColor = color;
+            c.shadowBlur = blur;
+            c.shadowOffsetX = x;
+            c.shadowOffsetY = y;
+        }
     },
     /**
      * Generate a gradient, which can be applied as a color.
@@ -145,6 +185,13 @@ const options = {
         setParticles: (particles) => {
             smokeProperties.particles = particles;
         }
+    },
+    /**
+     * sets whether or not to put the water behind the ui
+     * @param {boolean} val 
+     */
+    setWaterBehindUI(val = true) {
+        waterBehindUI = val;
     }
 };
 
@@ -172,6 +219,7 @@ const draw = {
     fill: {
         /**
          * Fill a rectangle on the screen.
+         * @param {CanvasRenderingContext2D} c
          * @param {string | CanvasGradient | CanvasPattern} color
          * @param {number} x
          * @param {number} y
@@ -179,7 +227,7 @@ const draw = {
          * @param {number} h
          * @param {number} r
          */
-        rect: (color, x, y, w, h, r = 0) => {
+        rect: (c, color, x, y, w, h, r = 0) => {
             c.fillStyle = color;
             c.beginPath();
             c.moveTo(x, y + r);
@@ -195,12 +243,13 @@ const draw = {
         },
         /**
          * Fill a circle on the screen.
+         * @param {CanvasRenderingContext2D} c
          * @param {string | CanvasGradient | CanvasPattern} color
          * @param {number} x
          * @param {number} y
          * @param {number} r
          */
-        circle: (color, x, y, r) => {
+        circle: (c, color, x, y, r) => {
             c.fillStyle = color;
             c.beginPath();
             c.arc(x, y, r, 0, Math.PI * 2);
@@ -208,13 +257,14 @@ const draw = {
         },
         /**
          * Fill an up or down pointing triangle on the screen.
+         * @param {CanvasRenderingContext2D} c
          * @param {string | CanvasGradient | CanvasPattern} color
          * @param {number} bx
          * @param {number} y
          * @param {number} w
          * @param {number} h
          */
-        triangleUD: (color, bx, y, w, h) => {
+        triangleUD: (c, color, bx, y, w, h) => {
             c.fillStyle = color;
             c.beginPath();
             c.moveTo(bx - w / 2, y);
@@ -225,13 +275,14 @@ const draw = {
         },
         /**
          * Fill a left or right pointing triangle on the screen.
+         * @param {CanvasRenderingContext2D} c
          * @param {string | CanvasGradient | CanvasPattern} color
          * @param {number} x
          * @param {number} ty
          * @param {number} w
          * @param {number} h
          */
-        triangleLR: (color, x, by, w, h) => {
+        triangleLR: (c, color, x, by, w, h) => {
             c.fillStyle = color;
             c.beginPath();
             c.moveTo(x, by - h / 2);
@@ -242,6 +293,7 @@ const draw = {
         },
         /**
          * Fill a parallellogram on the screen.
+         * @param {CanvasRenderingContext2D} c
          * @param {string | CanvasGradient | CanvasPattern} color
          * @param {number} x
          * @param {number} y
@@ -249,7 +301,7 @@ const draw = {
          * @param {number} h
          * @param {number} d
          */
-        parallellogram: (color, x, y, w, h, d = 15) => {
+        parallellogram: (c, color, x, y, w, h, d = 15) => {
             c.fillStyle = color;
             c.beginPath();
             c.moveTo(x + d, y);
@@ -263,6 +315,7 @@ const draw = {
     stroke: {
         /**
          * Stroke a rectangle on the screen.
+         * @param {CanvasRenderingContext2D} c
          * @param {string | CanvasGradient | CanvasPattern} color
          * @param {number} x
          * @param {number} y
@@ -271,7 +324,7 @@ const draw = {
          * @param {number} lw
          * @param {number} r
          */
-        rect: (color, x, y, w, h, lw = 2, r = 0) => {
+        rect: (c, color, x, y, w, h, lw = 2, r = 0) => {
             c.strokeStyle = color;
             c.lineWidth = lw;
             c.beginPath();
@@ -288,6 +341,7 @@ const draw = {
         },
         /**
          * Stroke an (incomplete) arc on the screen.
+         * @param {CanvasRenderingContext2D} c
          * @param {string | CanvasGradient | CanvasPattern} color
          * @param {number} x
          * @param {number} y
@@ -295,7 +349,7 @@ const draw = {
          * @param {number} lw
          * @param {number} part
          */
-        arc: (color, x, y, r, lw = 2, part = 1) => {
+        arc: (c, color, x, y, r, lw = 2, part = 1) => {
             const angle1 = -0.5 * Math.PI;
             const angle2 = part * 2 * Math.PI + angle1;
 
@@ -309,6 +363,7 @@ const draw = {
     },
     /**
      * Draw an image on the canvas.
+     * @param {CanvasRenderingContext2D} c
      * @param {HTMLImageElement} image
      * @param {number} x
      * @param {number} y
@@ -318,7 +373,7 @@ const draw = {
      * @param {number} pivotPointX X pivot point (0 to 1)
      * @param {number} pivotPointY Y pivot point (0 to 1)
      */
-    image: (image, x, y, w = image.width, h = image.height, rotation = 0, pivotPointX = 0.5, pivotPointY = 0.5) => {
+    image: (c, image, x, y, w = image.width, h = image.height, rotation = 0, pivotPointX = 0.5, pivotPointY = 0.5) => {
         const px = pivotPointX * w;
         const py = pivotPointY * h;
         c.save();
@@ -330,6 +385,7 @@ const draw = {
     },
     /**
      * Draw a cropped image on the canvas.
+     * @param {CanvasRenderingContext2D} c
      * @param {HTMLImageElement} image
      * @param {number} sx
      * @param {number} sy
@@ -340,11 +396,12 @@ const draw = {
      * @param {number} dw
      * @param {number} dh
      */
-    croppedImage: (image, sx, sy, sw, sh, dx, dy, dw, dh) => {
+    croppedImage: (c, image, sx, sy, sw, sh, dx, dy, dw, dh) => {
         c.drawImage(image, sx, sy, sw, sh, dx, dy, dw, dh);
     },
     /**
      * Draw a line on the screen.
+     * @param {CanvasRenderingContext2D} c
      * @param {string | CanvasGradient | CanvasPattern} color
      * @param {number} x1
      * @param {number} y1
@@ -353,7 +410,7 @@ const draw = {
      * @param {number} lw
      * @param {"butt" | "round"} lc
      */
-    line: (color, x1, y1, x2, y2, lw = 2, lc = "round") => {
+    line: (c, color, x1, y1, x2, y2, lw = 2, lc = "round") => {
         c.strokeStyle = color;
         c.lineWidth = lw;
         c.lineCap = lc;
@@ -364,6 +421,7 @@ const draw = {
     },
     /**
      * Draw text on the screen.
+     * @param {CanvasRenderingContext2D} c
      * @param {{
      *  text: string,
      *  x: number,
@@ -377,7 +435,7 @@ const draw = {
      * }} opts
      * @returns {undefined | number}
      */
-    text: (opts) => {
+    text: (c, opts) => {
         c.fillStyle = opts.color ?? theme.getTextColor();
         c.textBaseline = opts.baseline ?? "alphabetic";
         c.textAlign = opts.alignment ?? "center";
@@ -391,10 +449,11 @@ const draw = {
     },
     /**
      * Draw a button on the screen.
+     * @param {CanvasRenderingContext2D} c
      * @param {import("../class/ui/Button")} button
      * @param {number} offsetX
      */
-    button: (button, offsetX) => {
+    button: (c, button, offsetX) => {
         let color = theme.colors.text.light;
 
         if (button.disabled) {
@@ -407,6 +466,7 @@ const draw = {
         }
 
         draw.croppedImage(
+            c,
             image.buttons,
             (button.icon) ? initial.width : 0,
             Number(button.hovering) * (button.icon ? initial.iconButton : initial.height),
@@ -424,6 +484,7 @@ const draw = {
             else if (button.danger) options.filter.add("hue-rotate(180deg)", "saturate(7)");
 
             draw.croppedImage(
+                c,
                 image.buttons,
                 initial.width + initial.iconButton + button.icon()[0] * 120,
                 button.icon()[1] * 120,
@@ -435,24 +496,25 @@ const draw = {
                 iconSize
             );
             options.filter.remove("brightness", "hue-rotate", "saturate");
-        } else draw.text({text: button.text, x: button.x() + offsetX, y: button.y(), color, font: {size: 32 * button.scale}, baseline: "middle"});
+        } else draw.text(c, {text: button.text, x: button.x() + offsetX, y: button.y(), color, font: {size: 32 * button.scale}, baseline: "middle"});
     },
     /**
      * Draw an input field on the screen.
+     * @param {CanvasRenderingContext2D} c
      * @param {import("../class/ui/Input")} input
      * @param {number} offsetX
      * @param {boolean} invalid
      * @param {boolean} trailingChar
      */
-    input: (input, offsetX, invalid, trailingChar) => {
+    input: (c, input, offsetX, invalid, trailingChar) => {
         const x = input.x() + offsetX;
         const y = input.y();
         const w = input.width;
         const h = input.getHeight();
         if (input.disabled) options.filter.add("grayscale(1)");
-        draw.fill.rect(theme.colors.ui.primary, x - w / 2, y - h / 2, w, h, 6);
-        draw.stroke.rect((input.focused) ? "white" : (input.hovering) ? "#eee" : theme.colors.ui.secondary, x - w / 2, y - h / 2, w, h, 3, 6);
-        draw.text({
+        draw.fill.rect(c, theme.colors.ui.primary, x - w / 2, y - h / 2, w, h, 6);
+        draw.stroke.rect(c, (input.focused) ? "white" : (input.hovering) ? "#eee" : theme.colors.ui.secondary, x - w / 2, y - h / 2, w, h, 3, 6);
+        draw.text(c, {
             text: input.value + (input.focused && trailingChar ? "_": input.focused? "  " : ""),
             x: x - (input.keybind ? 0 : w / 2 - 8),
             y: y + 4,
@@ -478,6 +540,7 @@ const draw = {
      * @param {number} smokeCLR the number to use for R,G and B of the color for the smoke
      */
     smoke: (t, cutouts, updateSmoke = true, solidRenderDistance = 200, optimizeBySolidity, smokeCLR = 200) => {
+        smokeC.clearRect(0, 0, width(), height());
         // c.globalCompositeOperation = "source-over";
         // c.globalAlpha = 1;
         // c.fillStyle = "rgba(0,0,0,0.06)";
@@ -488,7 +551,7 @@ const draw = {
             if (Math.abs(n) < 0) {
                 return Math.random() < 0.5? Math.random() * 5 : -(Math.random() * 5);
             }
-          return n;
+            return n;
         }
 
         forp: for (const p of smokeProperties.particles) {
@@ -509,18 +572,32 @@ const draw = {
             for (const cutout of cutouts) {
                 if (cutout !== false && Math.hypot(p.x - (cutout.x), p.y - (cutout.y)) < cutout.radius + solidRenderDistance) renderSolid = false;
             }
-            c.fillStyle = renderSolid? 
+            smokeC.fillStyle = renderSolid?
                 `rgb(${smokeCLR}, ${smokeCLR}, ${smokeCLR})` :
                 `rgba(${smokeCLR}, ${smokeCLR}, ${smokeCLR}, ${p.alpha * (5 - ((smokeProperties.particleCount / 100) - 18))})`;
+                // grad;
             for (const cutout of cutouts) {
                 if (cutout !== false && Math.hypot(p.x - (cutout.x), p.y - (cutout.y)) < cutout.radius) {
                         continue forp;
                 }
             }
-            c.beginPath();
-            c.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-            c.fill();
+            smokeC.beginPath();
+            smokeC.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            smokeC.fill();
         }
+    },
+    clearSmoke: () => {
+        smokeC.clearRect(0, 0, width(), height());
+    },
+    clearUI: () => {
+        uiC.clearRect(0, 0, width(), height());
+        fastUiC.clearRect(0, 0, width(), height());
+    },
+    clearBackground: () => {
+        backgroundC.clearRect(0, 0, width(), height());
+    },
+    clearPlatforms: () => {
+        platformC.clearRect(0, 0, width(), height());
     }
 };
 
@@ -532,5 +609,23 @@ module.exports = {
     clear,
     options,
     generate,
-    draw
+    draw,
+    updateRC: (offsetX, offsetY) => {
+        realC.clearRect(0, 0, realCanvas.width, realCanvas.height);
+        realC.drawImage(backgroundCanvas, 0, 0);
+        realC.drawImage(platformCanvas, offsetX, offsetY);
+        realC.drawImage(canvas, offsetX, offsetY);
+        if (waterBehindUI) realC.drawImage(waterCanvas, 0, 0);
+        realC.drawImage(smokeCanvas, 0, 0);
+        realC.drawImage(uiCanvas, offsetX, offsetY);
+        realC.drawImage(fastUiCanvas, offsetX, offsetY);
+        if (!waterBehindUI) realC.drawImage(waterCanvas, 0, 0);
+    },
+    c,
+    uiC,
+    smokeC,
+    platformC,
+    waterC,
+    backgroundC,
+    fastUiC
 };

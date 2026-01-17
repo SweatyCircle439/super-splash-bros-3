@@ -141,7 +141,7 @@ class Player {
                 this.parachuteFilter = "hue-rotate(300deg)";
                 break;
             case 7:
-                this.parachuteFilter = "saturate(0)";
+                this.parachuteFilter = "saturate(0), brightness(2.5)";
                 break;
             default:
                 break;

@@ -1947,12 +1947,14 @@ Input.items = [
 ];
 
 let smokeTime = 0;
-let lastSmokeRender = 0;
+let wereJustTransitioning = false;
 setInterval(() => {
     smokeTime++;
 }, 1000 / 100);
 
 addEventListener("DOMContentLoaded", () => {
+    // setInterval(c.updateRC, 1000/120);
+
     c.init();
 
     audio.music.loop = true;
@@ -2195,6 +2197,8 @@ addEventListener("DOMContentLoaded", () => {
             if (input.focused && input.keybind) Input.isRemapping = true;
         }
         if (banButton.hoverIndex > -1) banButton.active = true;
+        c.draw.clearUI();
+        setTimeout(() => c.draw.clearUI(), 1000 / 60);
     });
     addEventListener("mouseup", (_e) => {
         for (const button of getHoverableButtons()) {
@@ -2465,31 +2469,50 @@ addEventListener("DOMContentLoaded", () => {
 
     const draw = () => {
         c.clear();
-        c.draw.fill.rect(theme.getBackgroundColor(), 0, 0, c.width(), c.height());
-        if (theme.current === "sunset") {
-            c.options.setShadow("yellow", 64);
-            c.draw.fill.circle("yellow", c.width(0.5), c.height() - 100, c.width(0.2));
-            c.options.setShadow();
-        } else if (theme.current === "night") c.draw.fill.rect(c.options.pattern(image.stars), 0, 0, c.width(), c.height());
-        else if (theme.current === "synthwave") {
-            c.options.setOpacity(0.1);
-            c.draw.fill.rect(c.options.pattern(image.stars), 0, 0, c.width(), c.height());
-            c.options.setOpacity();
-            c.draw.fill.rect(c.options.gradient(0, c.height(0.3), 0, c.height(), {pos: 0, color: "transparent"}, {pos: 1, color: "#d51ec4"}), 0, 0, c.width(), c.height());
-            c.draw.fill.circle(c.options.gradient(0, c.height() - 600, 0, c.height(), {pos: 0, color: "yellow"}, {pos: 1, color: "#ff1f82"}), c.width(0.5), c.height() - 169, c.width(0.2));
-        } else if (theme.current === "foggy") {
-            c.options.setOpacity(0.05);
-            c.draw.fill.rect(c.options.pattern(image.stars), 0, 0, c.width(), c.height());
-            c.options.setOpacity();
-            c.draw.fill.rect(c.options.gradient(0, 0, 0, c.height(1.5), {pos: 0, color: "transparent"}, {pos: 1, color: theme.colors.text.light}), 0, 0, c.width(), c.height());
-        } else if (theme.current === "snowy") {
-            c.options.setShadow("lightblue");
+        let shouldRenderUI = false;
+        if (state.isMenu()) {
+            shouldRenderUI = true;
+            c.draw.clearSmoke();
+        }
+        if (frames % 100 === 0 || bigNotification.a > 0) shouldRenderUI = true;
+        else if (state.change.active) c.draw.clearUI();
+        else if (wereJustTransitioning) {
+            shouldRenderUI = true;
+            wereJustTransitioning = false;
+        }
+        if (shouldRenderUI) {
+            c.draw.clearUI();
+        }
+        if (frames % 1000 === 0 || state.isMenu()) {
+            c.draw.clearBackground();
+            c.draw.fill.rect(c.backgroundC, theme.colors.ui.primary, 0, 0, c.width(), c.height())
+            c.draw.fill.rect(c.backgroundC, theme.getBackgroundColor(), 0, 0, c.width(), c.height());
+            if (theme.current === "sunset") {
+                c.options.setShadow("yellow", 64);
+                c.draw.fill.circle(c.backgroundC, "yellow", c.width(0.5), c.height() - 100, c.width(0.2));
+                c.options.setShadow();
+            } else if (theme.current === "night") c.draw.fill.rect(c.backgroundC, c.options.pattern(image.stars), 0, 0, c.width(), c.height());
+            else if (theme.current === "synthwave") {
+                c.options.setOpacity(0.1);
+                c.draw.fill.rect(c.backgroundC, c.options.pattern(image.stars), 0, 0, c.width(), c.height());
+                c.options.setOpacity();
+                c.draw.fill.rect(c.backgroundC, c.options.gradient(0, c.height(0.3), 0, c.height(), {pos: 0, color: "transparent"}, {pos: 1, color: "#d51ec4"}), 0, 0, c.width(), c.height());
+                c.draw.fill.circle(c.backgroundC, c.options.gradient(0, c.height() - 600, 0, c.height(), {pos: 0, color: "yellow"}, {pos: 1, color: "#ff1f82"}), c.width(0.5), c.height() - 169, c.width(0.2));
+            } else if (theme.current === "foggy") {
+                c.options.setOpacity(0.05);
+                c.draw.fill.rect(c.backgroundC, c.options.pattern(image.stars), 0, 0, c.width(), c.height());
+                c.options.setOpacity();
+                c.draw.fill.rect(c.backgroundC, c.options.gradient(0, 0, 0, c.height(1.5), {pos: 0, color: "transparent"}, {pos: 1, color: theme.colors.text.light}), 0, 0, c.width(), c.height());
+            } else if (theme.current === "snowy") {
+                c.options.setShadow("lightblue");
+            }
         }
 
         const drawWater = () => {
             if (theme.filters[theme.current]) c.options.filter.add(...theme.filters[theme.current]);
 
             c.draw.fill.rect(
+                c.waterC,
                 c.options.gradient(0, water.flood.level, 0, water.flood.level + c.height(),
                 {pos: 0, color: theme.colors.ui.secondary}, {pos: 0.5, color: theme.colors.ui.primary}, {pos: 1, color: theme.colors.ui.secondary}),
                 0,
@@ -2497,37 +2520,40 @@ addEventListener("DOMContentLoaded", () => {
                 c.width(),
                 c.height() + 2
             );
-            if (water.flood.showMessage) c.draw.text({text: "Good luck, have fun!", x: c.width(0.5), y: water.flood.level + c.height(0.5), color: theme.colors.ui.secondary, font: {size: 100, style: "bold"}, baseline: "middle"});
+            if (water.flood.showMessage && frames % 100 == 0) c.draw.text(c.uiC, {text: "Good luck, have fun!", x: c.width(0.5), y: water.flood.level + c.height(0.5), color: theme.colors.ui.secondary, font: {size: 100, style: "bold"}, baseline: "middle"});
 
             water.imageX = 0;
             while (water.imageX < c.width() + image.water.width) {
-                c.draw.image(image.water, water.x + water.imageX, water.flood.level - image.water.height);
+                c.draw.image(c.waterC, image.water, water.x + water.imageX, water.flood.level - image.water.height);
                 water.imageX += image.water.width;
             }
-            if (state.is(state.MAIN_MENU)) c.draw.text({text: `v${versions.game}`, x: 8 + state.change.x, y: water.flood.level - 15, color: theme.colors.ui.primary, font: {size: 26}, alignment: "left"});
-            if (Replay.isSaving) c.draw.text({text: `Saving replay...`, x: c.width() - 8 - state.change.x, y: c.height() - 15, color: theme.colors.text.light, font: {size: 26, shadow: true}, alignment: "right"});
+            if (state.is(state.MAIN_MENU)) c.draw.text(c.uiC, {text: `v${versions.game}`, x: 8 + state.change.x, y: water.flood.level - 15, color: theme.colors.ui.primary, font: {size: 26}, alignment: "left"});
+            if (Replay.isSaving) c.draw.text(c.uiC, {text: `Saving replay...`, x: c.width() - 8 - state.change.x, y: c.height() - 15, color: theme.colors.text.light, font: {size: 26, shadow: true}, alignment: "right"});
 
             if (theme.filters[theme.current]) c.options.filter.remove(...theme.filters[theme.current]);
         };
 
+        const offset = {x: (c.width() - image.platforms.width) / 2, y: c.height() - image.platforms.height};
         if (state.isMenu()) {
             for (const sprite of MenuSprite.items) {
-                if (sprite.visible) c.draw.croppedImage(image.sprites, sprite.color * 128, sprite.facing * 128, 128, 128, sprite.x, sprite.y, 96, 96);
+                if (sprite.visible) c.draw.croppedImage(c.uiC, image.sprites, sprite.color * 128, sprite.facing * 128, 128, 128, sprite.x, sprite.y, 96, 96);
             }
             drawWater();
+            c.draw.clearPlatforms();
+            if (state.is(state.WAITING_FREEPLAY, state.WAITING_LAN_GUEST, state.WAITING_LAN_HOST, state.WAITING_LOCAL, state.REPLAYS_MENU)) {
+                if (theme.current === "foggy") c.options.filter.add("sepia(1)", "hue-rotate(150deg)", "brightness(1.5)");
+                if (theme.current === "snowy") c.options.filter.add("sepia(1)", "hue-rotate(150deg)", "brightness(100)");
+                c.draw.image(c.platformC, image.platforms, offset.x, offset.y);
+                c.options.filter.remove("sepia", "hue-rotate", "brightness");
+            }
         } else if (state.is(state.PLAYING_LOCAL, state.PLAYING_LAN, state.PLAYING_FREEPLAY, state.WATCHING_REPLAY, state.TUTORIAL_GAME) && game) {
-            const offset = {x: (c.width() - image.platforms.width) / 2 + screenShake.x, y: c.height() - image.platforms.height + screenShake.y};
-
-            if (theme.current === "foggy") c.options.filter.add("sepia(1)", "hue-rotate(150deg)", "brightness(1.5)");
-            if (theme.current === "snowy") c.options.filter.add("sepia(1)", "hue-rotate(150deg)", "brightness(100)");
-            c.draw.image(image.platforms, offset.x, offset.y);
-            c.options.filter.remove("sepia", "hue-rotate", "brightness");
             if (game.supply.item) {
                 c.options.setOpacity(game.supply.item.takeable ? 1 : 0.35);
-                c.draw.image(image.supply, game.supply.item.x + offset.x, game.supply.item.y + offset.y, Supply.width, Supply.height, game.supply.item.rotation);
+                c.draw.image(c.c, image.supply, game.supply.item.x + offset.x, game.supply.item.y + offset.y, Supply.width, Supply.height, game.supply.item.rotation);
                 if (game.supply.item.parachuteDeployed) {
                     c.options.filter.add(`hue-rotate(${Math.floor(game.supply.item.hue)}deg)`);
                     c.draw.image(
+                        c.c,
                         image.parachute,
                         game.supply.item.x + offset.x - (image.parachute.width - Supply.width) / 2,
                         game.supply.item.y - 20 + offset.y - (Supply.height * 2) + 30,
@@ -2538,6 +2564,7 @@ addEventListener("DOMContentLoaded", () => {
                     c.options.filter.remove(`hue-rotate(${Math.floor(game.supply.item.hue)}deg)`);
                 }
                 if (game.supply.item.takeable && game.supply.item.takeValue > 0) c.draw.stroke.arc(
+                    c.c,
                     theme.colors.players[game.supply.item.takenBy],
                     game.supply.item.x + Supply.width / 2 + offset.x,
                     game.supply.item.y + Supply.height / 2 + offset.y,
@@ -2554,16 +2581,17 @@ addEventListener("DOMContentLoaded", () => {
                 if (p.exclusivePlatform) {
                     c.options.setOpacity(0.5);
                     c.options.setShadow(theme.colors.text.light, 18);
-                    c.draw.fill.rect(theme.colors.players[p.index], p.exclusivePlatform.x + offset.x, p.exclusivePlatform.y + offset.y, Exclusive.width, Exclusive.height, 4);
+                    c.draw.fill.rect(c.platformC, theme.colors.players[p.index], p.exclusivePlatform.x + offset.x, p.exclusivePlatform.y + offset.y, Exclusive.width, Exclusive.height, 4);
                     c.options.setOpacity();
                     c.options.setShadow();
                 }
 
                 if (p.powerup.active && p.powerup.selected === Player.powerup.INVISIBILITY) c.options.setOpacity((playerIndex === p.index || state.current === state.WATCHING_REPLAY) ? 0.2 : 0);
-                if (frames % 4 < 2 || game.ping - p.respawn >= p.spawnProtection) c.draw.croppedImage(image.sprites, p.index * 128, Number(p.facing === "l") * 128, 128, 128, p.x + offset.x, p.y + offset.y, p.size, p.size);
+                if (frames % 4 < 2 || game.ping - p.respawn >= p.spawnProtection) c.draw.croppedImage(c.c, image.sprites, p.index * 128, Number(p.facing === "l") * 128, 128, 128, p.x + offset.x, p.y + offset.y, p.size, p.size);
                 if (p.parachuteDeployed) {
                     c.options.filter.add(...p.parachuteFilter.split(", "));
                     c.draw.image(
+                        c.c,
                         image.parachute,
                         p.x + offset.x - (image.parachute.width - p.size) / 2,
                         p.y - 115 + offset.y - (p.size * 2),
@@ -2575,7 +2603,7 @@ addEventListener("DOMContentLoaded", () => {
                 }
                 c.options.setOpacity();
 
-                if (playerIndex === p.index) c.draw.fill.triangleUD(theme.colors.ui.indicator, p.x + p.size / 2 + offset.x, p.y + offset.y - 32, 40, 20);
+                if (playerIndex === p.index) c.draw.fill.triangleUD(c.c, theme.colors.ui.indicator, p.x + p.size / 2 + offset.x, p.y + offset.y - 32, 40, 20);
 
                 const offScreen = {
                     x: Math.min(c.width() - p.size - 35, Math.max(25, p.x + offset.x)),
@@ -2583,18 +2611,20 @@ addEventListener("DOMContentLoaded", () => {
                     triangleX: Math.min(c.width() - p.size - 15, Math.max(5, p.x + offset.x)),
                     triangleY: Math.min(c.height() - p.size - 15, Math.max(5, p.y + offset.y))
                 };
-                if (p.x + offset.x < -p.size && p.lives > 0 && p.connected) {
-                    c.draw.fill.rect(theme.colors.players[p.index], 25, offScreen.y - 10, p.size + 20, p.size + 20, 8);
-                    c.draw.fill.triangleLR(theme.colors.players[p.index], 25, offScreen.triangleY + p.size / 2, -20, 30);
-                    c.draw.croppedImage(image.sprites, p.index * 128, Number(p.facing === "l") * 128, 128, 128, 35, offScreen.y, p.size, p.size);
-                } else if (p.x + offset.x > c.width() && p.lives > 0 && p.connected) {
-                    c.draw.fill.rect(theme.colors.players[p.index], c.width() - p.size - 45, offScreen.y - 10, p.size + 20, p.size + 20, 8);
-                    c.draw.fill.triangleLR(theme.colors.players[p.index], c.width() - 25, offScreen.triangleY + p.size / 2, 20, 30);
-                    c.draw.croppedImage(image.sprites, p.index * 128, Number(p.facing === "l") * 128, 128, 128, c.width() - p.size - 35, offScreen.y, p.size, p.size);
-                } else if (p.y + offset.y < -p.size && p.lives > 0 && p.connected && state.current !== state.TUTORIAL_GAME) {
-                    c.draw.fill.rect(theme.colors.players[p.index], offScreen.x - 10, 25, p.size + 20, p.size + 20, 8);
-                    c.draw.fill.triangleUD(theme.colors.players[p.index], offScreen.triangleX + p.size / 2, 25, 30, -20);
-                    c.draw.croppedImage(image.sprites, p.index * 128, Number(p.facing === "l") * 128, 128, 128, offScreen.x, 35, p.size, p.size);
+                if (shouldRenderUI) {
+                    if (p.x + offset.x < -p.size && p.lives > 0 && p.connected) {
+                        c.draw.fill.rect(c.uiC, theme.colors.players[p.index], 25, offScreen.y - 10, p.size + 20, p.size + 20, 8);
+                        c.draw.fill.triangleLR(c.uiC, theme.colors.players[p.index], 25, offScreen.triangleY + p.size / 2, -20, 30);
+                        c.draw.croppedImage(c.uiC, image.sprites, p.index * 128, Number(p.facing === "l") * 128, 128, 128, 35, offScreen.y, p.size, p.size);
+                    } else if (p.x + offset.x > c.width() && p.lives > 0 && p.connected) {
+                        c.draw.fill.rect(c.uiC, theme.colors.players[p.index], c.width() - p.size - 45, offScreen.y - 10, p.size + 20, p.size + 20, 8);
+                        c.draw.fill.triangleLR(c.uiC, theme.colors.players[p.index], c.width() - 25, offScreen.triangleY + p.size / 2, 20, 30);
+                        c.draw.croppedImage(c.uiC, image.sprites, p.index * 128, Number(p.facing === "l") * 128, 128, 128, c.width() - p.size - 35, offScreen.y, p.size, p.size);
+                    } else if (p.y + offset.y < -p.size && p.lives > 0 && p.connected && state.current !== state.TUTORIAL_GAME) {
+                        c.draw.fill.rect(c.uiC, theme.colors.players[p.index], offScreen.x - 10, 25, p.size + 20, p.size + 20, 8);
+                        c.draw.fill.triangleUD(c.uiC, theme.colors.players[p.index], offScreen.triangleX + p.size / 2, 25, 30, -20);
+                        c.draw.croppedImage(c.uiC, image.sprites, p.index * 128, Number(p.facing === "l") * 128, 128, 128, offScreen.x, 35, p.size, p.size);
+                    }
                 }
             }
             if (theme.isDark()) c.options.setShadow(theme.colors.shadow, 2);
@@ -2603,11 +2633,11 @@ addEventListener("DOMContentLoaded", () => {
 
                 if (p.powerup.active && p.powerup.selected === Player.powerup.FORCE_FIELD) {
                     c.options.setShadow(theme.colors.shadow, 7);
-                    c.draw.stroke.arc(theme.colors.text.light, p.x + offset.x + p.size / 2, p.y + offset.y + p.size / 2, Math.sqrt(p.size ** 2 * 2) / 2);
+                    c.draw.stroke.arc(c.c, theme.colors.text.light, p.x + offset.x + p.size / 2, p.y + offset.y + p.size / 2, Math.sqrt(p.size ** 2 * 2) / 2);
                     c.options.setShadow();
                 }
                 if (p.powerup.active && p.powerup.selected === Player.powerup.INVISIBILITY) c.options.setOpacity((playerIndex === p.index) ? 0.2 : 0);
-                c.draw.text({text: p.name, x: p.x + p.size / 2 + offset.x, y: p.y + offset.y - (playerIndex === p.index ? 42 : 10), font: {size: 20}});
+                c.draw.text(c.c, {text: p.name, x: p.x + p.size / 2 + offset.x, y: p.y + offset.y - (playerIndex === p.index ? 42 : 10), font: {size: 20}});
                 c.options.setOpacity();
             }
             c.options.setShadow();
@@ -2617,22 +2647,22 @@ addEventListener("DOMContentLoaded", () => {
                 c.options.setOpacity(g.a);
 
                 if (theme.filters[theme.current]) c.options.filter.add(...theme.filters[theme.current]);
-                c.draw.fill.rect(grd, g.x + offset.x, g.y, Geyser.width, Math.abs(g.y) + c.height(2), Geyser.width / 4);
+                c.draw.fill.rect(c.c, grd, g.x + offset.x, g.y, Geyser.width, Math.abs(g.y) + c.height(2), Geyser.width / 4);
                 if (theme.filters[theme.current]) c.options.filter.remove(...theme.filters[theme.current]);
             }
             for (const ci of game.circles) {
                 c.options.setOpacity(ci.a);
-                if (ci.lineWidth > -1) c.draw.stroke.arc(ci.color, ci.x + offset.x, ci.y + offset.y, ci.r, ci.lineWidth);
-                else c.draw.fill.circle(ci.color, ci.x + offset.x, ci.y + offset.y, ci.r);
+                if (ci.lineWidth > -1) c.draw.stroke.arc(c.c, ci.color, ci.x + offset.x, ci.y + offset.y, ci.r, ci.lineWidth);
+                else c.draw.fill.circle(c.c, ci.color, ci.x + offset.x, ci.y + offset.y, ci.r);
             }
             c.options.setOpacity();
 
             for (const r of game.rockets) {
                 if (r.explosion.active) {
                     c.options.setOpacity(r.explosion.a);
-                    c.draw.image(image.explosion, r.x - r.explosion.size / 2 + offset.x, r.y - r.explosion.size / 2 + offset.y, r.explosion.size, r.explosion.size);
+                    c.draw.image(c.c, image.explosion, r.x - r.explosion.size / 2 + offset.x, r.y - r.explosion.size / 2 + offset.y, r.explosion.size, r.explosion.size);
                     c.options.setOpacity();
-                } else c.draw.line(theme.getTextColor(), r.x + offset.x, r.y + offset.y, r.x + r.width + offset.x, r.y + offset.y, 9);
+                } else c.draw.line(c.c, theme.getTextColor(), r.x + offset.x, r.y + offset.y, r.x + r.width + offset.x, r.y + offset.y, 9);
             }
             drawWater();
 
@@ -2640,20 +2670,21 @@ addEventListener("DOMContentLoaded", () => {
                 c.options.setOpacity(s.a);
 
                 if (theme.filters[theme.current]) c.options.filter.add(...theme.filters[theme.current]);
-                c.draw.image(image.splash, s.x - image.splash.width / 2 + offset.x, offset.y + 560 + s.h);
+                c.draw.image(c.uiC, image.splash, s.x - image.splash.width / 2 + offset.x, offset.y + 560 + s.h);
                 if (theme.filters[theme.current]) c.options.filter.remove(...theme.filters[theme.current]);
             }
             c.options.setOpacity();
 
             for (const pb of game.poopBombs) {
-                c.draw.image(image.poopbomb, pb.x - image.poopbomb.width / 2 + offset.x, pb.y - image.poopbomb.height / 2 + offset.y);
+                c.draw.image(c.c, image.poopbomb, pb.x - image.poopbomb.width / 2 + offset.x, pb.y - image.poopbomb.height / 2 + offset.y);
             }
 
             if (game.fish.item) {
                 c.options.setOpacity(game.fish.item.takeable ? 1 : 0.35);
                 c.options.setShadow(theme.colors.text.light, 15);
-                c.draw.image(image.fish, game.fish.item.x + offset.x, game.fish.item.y + offset.y, Fish.width, Fish.height, game.fish.item.rotation);
+                c.draw.image(c.c, image.fish, game.fish.item.x + offset.x, game.fish.item.y + offset.y, Fish.width, Fish.height, game.fish.item.rotation);
                 if (game.fish.item.takeable && game.fish.item.takeValue > 0) c.draw.stroke.arc(
+                    c.c,
                     theme.colors.players[game.fish.item.takenBy],
                     game.fish.item.x + Fish.width / 2 + offset.x,
                     game.fish.item.y + Fish.height / 2 + offset.y,
@@ -2670,7 +2701,7 @@ addEventListener("DOMContentLoaded", () => {
             let i = 0;
             const thisP = game.players[playerIndex];
             if (theme.current === "foggy" || game.snowStormActive) {
-                if (true) {
+                if (frames % 5 === 0) {
                     lastSmokeRender = smokeTime;
                     c.draw.smoke(smokeTime, [
                         ...game.players.map(p => p && (Math.abs(p.vy) + Math.abs(p.vx) >= 1) ? {
@@ -2681,12 +2712,14 @@ addEventListener("DOMContentLoaded", () => {
                         thisP? { x: thisP.x + offset.x, y: thisP.y + offset.y, radius: thisP.viewDistance } : false,
                     ], true, 200, false, game.snowStormActive? 255 : 200);
                 }
+            }else {
+                c.draw.clearSmoke();
             }
             for (const p of game.players) {
                 if (p === null) continue;
 
-                const x = spacing / 2 + i * (parallellogramWidth + spacing) + screenShake.x;
-                const y = parallellogram.y + screenShake.y;
+                const x = spacing / 2 + i * (parallellogramWidth + spacing);
+                const y = parallellogram.y;
                 const offsets = (parallellogramWidth > 250) ? {
                     sprite: -3,
                     lives: 80,
@@ -2704,65 +2737,69 @@ addEventListener("DOMContentLoaded", () => {
                 const b = Math.min(Math.max(0, 255 - p.hit.percentage * 5), 255);
                 const shake = (game.ping - p.hit.last < p.hit.effectDuration) ? {x: (Math.random() - 0.5) * screenShake.intensity, y: (Math.random() - 0.5) * screenShake.intensity} : {x: 0, y: 0};
                 const color = (game.ping - p.hit.last < p.hit.effectDuration) ? `hsl(${Math.random() * 360}deg 100% 70%)` : `rgb(${r}, ${g}, ${b})`;
-                const decimalOffset = c.draw.text({text: Math.floor(p.hit.percentage), font: {size: 48, style: "bold"}, measure: true});
-                const decimalText = (parallellogramWidth > 250) ? p.hit.percentage.toFixed(1).slice(-2) + "%" : "%";
-
-                const shadowColor = (frames % 30 < 20 && p.powerup.available && p.powerup.meetsCondition) ? theme.colors.text.light
-                 : (frames % 30 < 20 && p.powerup.available) ? theme.colors.error.foreground
-                 : (frames % 30 < 20 && p.powerup.active) ? theme.colors.ui.highlight
-                 : theme.colors.shadow;
-                const shadowBlur = (shadowColor === theme.colors.shadow) ? 4 : 12;
-                c.options.setShadow(shadowColor, shadowBlur);
-
-                if (p.lives < 1 || !p.connected) c.options.setOpacity(0.3);
-                c.draw.fill.parallellogram(theme.colors.players[p.index], x, y, parallellogramWidth, 95);
-                c.draw.croppedImage(image.sprites, p.index * 128, 0, 128, 128, x + offsets.sprite, y - 10, 72, 72);
-                c.options.filter.remove("brightness");
-
-                c.options.setShadow(theme.colors.shadow, 2);
-                if (p.lives === Infinity) {
-                    c.draw.text({text: "∞", x: x + offsets.lives + 4, y: y - 19, color: theme.colors.text.light, font: {size: 16}, alignment: "left", baseline: "middle"});
-                }else {
-                    for (let l=0; l<p.lives; l++) c.draw.croppedImage(image.sprites, p.index * 128, 0, 128, 128, x + offsets.lives + l * 20, y - 19, 16, 16);
-                }
-                c.options.setShadow(theme.colors.shadow, 3, 1, 1);
-                c.draw.text({text: p.name, x: x + 11, y: y + 85, color: theme.colors.text.light, font: {size: nameSize}, alignment: "left", maxWidth: parallellogramWidth - 35});
-                if (p.lives >= 1 && p.connected) {
-                    c.draw.text({text: Math.floor(p.hit.percentage), x: x + offsets.percentage + shake.x, y: y + shake.y + 64, color, font: {size: 54, style: "bold"}, alignment: "left", baseline: "bottom"});
-                    c.draw.text({text: decimalText, x: x + decimalOffset + offsets.percentage + shake.x + 4, y: y + shake.y + 57, color, font: {size: 20, style: "bold"}, alignment: "left", baseline: "bottom"});
-
-                    c.options.setShadow();
-                    c.draw.image(image.explosion, x + parallellogramWidth - offsets.rockets - 12, y + 5, 24, 24);
+                if (shouldRenderUI) {
+                    const decimalOffset = c.draw.text(c.uiC, {text: Math.floor(p.hit.percentage), font: {size: 48, style: "bold"}, measure: true});
+                    const decimalText = (parallellogramWidth > 250) ? p.hit.percentage.toFixed(1).slice(-2) + "%" : "%";
+    
+                    const shadowColor = (frames % 30 < 20 && p.powerup.available && p.powerup.meetsCondition) ? theme.colors.text.light
+                     : (frames % 30 < 20 && p.powerup.available) ? theme.colors.error.foreground
+                     : (frames % 30 < 20 && p.powerup.active) ? theme.colors.ui.highlight
+                     : theme.colors.shadow;
+                    const shadowBlur = (shadowColor === theme.colors.shadow) ? 4 : 12;
+                    c.options.setShadow(shadowColor, shadowBlur);
+    
+                    if (p.lives < 1 || !p.connected) c.options.setOpacity(0.3);
+                    c.draw.fill.parallellogram(c.uiC, theme.colors.players[p.index], x, y, parallellogramWidth, 95);
+                    c.draw.croppedImage(c.uiC, image.sprites, p.index * 128, 0, 128, 128, x + offsets.sprite, y - 10, 72, 72);
+                    c.options.filter.remove("brightness");
+    
                     c.options.setShadow(theme.colors.shadow, 2);
+                    if (p.lives === Infinity) {
+                        c.draw.text(c.uiC, {text: "∞", x: x + offsets.lives + 4, y: y - 19, color: theme.colors.text.light, font: {size: 16}, alignment: "left", baseline: "middle"});
+                    }else {
+                        for (let l=0; l<p.lives; l++) c.draw.croppedImage(c.uiC, image.sprites, p.index * 128, 0, 128, 128, x + offsets.lives + l * 20, y - 19, 16, 16);
+                    }
+                    c.options.setShadow(theme.colors.shadow, 3, 1, 1);
+                    c.draw.text(c.uiC, {text: p.name, x: x + 11, y: y + 85, color: theme.colors.text.light, font: {size: nameSize}, alignment: "left", maxWidth: parallellogramWidth - 35});
+                    if (p.lives >= 1 && p.connected) {
+                        c.draw.text(c.uiC, {text: Math.floor(p.hit.percentage), x: x + offsets.percentage, y: y + 64, color, font: {size: 54, style: "bold"}, alignment: "left", baseline: "bottom"});
+                        c.draw.text(c.uiC, {text: decimalText, x: x + decimalOffset + offsets.percentage + 4, y: y + 57, color, font: {size: 20, style: "bold"}, alignment: "left", baseline: "bottom"});
 
-                    if (frames % 4 < 2 || [0, null, Infinity].includes(p.attacks.rocket.count) || game.ping - p.attacks.rocket.lastPerformed >= p.attacks.rocket.cooldown) c.draw.text({
-                        text: infiniteRocketCount(p.attacks.rocket.count) ? "∞" : p.attacks.rocket.count,
-                        x: x + parallellogramWidth - offsets.rockets,
-                        y: y + 18,
-                        color: (p.attacks.rocket.count === 0) ? theme.colors.error.foreground : theme.colors.text.light,
-                        font: {size: 18},
-                        baseline: "middle"
-                    });
-                    if (game.startState >= 6 && p.attacks.rocket.count < Player.maxRockets && !infiniteRocketCount(p.attacks.rocket.count)) c.draw.stroke.arc(theme.colors.text.light, x + parallellogramWidth - offsets.rockets, y + 17, 13, 2, (game.ping - p.attacks.rocket.lastRegenerated) / p.attacks.rocket.regenerationInterval);
+                        c.options.setShadow();
+                        c.draw.image(c.uiC, image.explosion, x + parallellogramWidth - offsets.rockets - 12, y + 5, 24, 24);
+                        c.options.setShadow(theme.colors.shadow, 2);
+
+                        if (frames % 4 < 2 || [0, null, Infinity].includes(p.attacks.rocket.count) || game.ping - p.attacks.rocket.lastPerformed >= p.attacks.rocket.cooldown) c.draw.text(c.uiC, {
+                            text: infiniteRocketCount(p.attacks.rocket.count) ? "∞" : p.attacks.rocket.count,
+                            x: x + parallellogramWidth - offsets.rockets,
+                            y: y + 18,
+                            color: (p.attacks.rocket.count === 0) ? theme.colors.error.foreground : theme.colors.text.light,
+                            font: {size: 18},
+                            baseline: "middle"
+                        });
+                    }
+                    c.options.setShadow();
+                    c.options.setOpacity();
+                    if (!p.connected) c.draw.image(c.uiC, image.disconnected, x + (parallellogramWidth - 115) / 2, y - 10, 115, 115);
+                    else if (p.lives < 1) c.draw.image(c.uiC, image.eliminated, x + (parallellogramWidth - 115) / 2, y - 10, 115, 115);
+                    else if (shadowColor === theme.colors.text.light) {
+                        c.options.setOpacity(0.8);
+                        c.draw.text(c.uiC, {text: "POWER-UP", x: x + parallellogramWidth / 2, y: y + 40, color: theme.colors.text.light, font: {size: 30, style: "bold"}, maxWidth: parallellogramWidth - 35});
+                        c.draw.text(c.uiC, {text: "AVAILABLE", x: x + parallellogramWidth / 2, y: y + 70, color: theme.colors.text.light, font: {size: 30, style: "bold"}, maxWidth: parallellogramWidth - 35});
+                    } else if (shadowColor === theme.colors.error.foreground) {
+                        c.options.setOpacity(0.8);
+                        c.draw.text(c.uiC, {text: "CONDITION", x: x + parallellogramWidth / 2, y: y + 40, color: theme.colors.error.foreground, font: {size: 30, style: "bold"}, maxWidth: parallellogramWidth - 35});
+                        c.draw.text(c.uiC, {text: "NOT MET", x: x + parallellogramWidth / 2, y: y + 70, color: theme.colors.error.foreground, font: {size: 30, style: "bold"}, maxWidth: parallellogramWidth - 35});
+                    } else if (shadowColor === theme.colors.ui.highlight) {
+                        c.options.setOpacity(0.8);
+                        const remaining = ((p.powerup.lastActivated + Game.powerups[p.powerup.selected].duration - game.ping) / 1000).toFixed(1);
+                        if (!isNaN(remaining)) c.draw.text(c.uiC, {text: remaining, x: x + parallellogramWidth / 2, y: y + 65, color: theme.colors.ui.highlight, font: {size: 58, style: "bold"}, maxWidth: parallellogramWidth - 35});
+                    }
+                    c.options.setOpacity();
                 }
-                c.options.setShadow();
-                c.options.setOpacity();
-                if (!p.connected) c.draw.image(image.disconnected, x + (parallellogramWidth - 115) / 2, y - 10, 115, 115);
-                else if (p.lives < 1) c.draw.image(image.eliminated, x + (parallellogramWidth - 115) / 2, y - 10, 115, 115);
-                else if (shadowColor === theme.colors.text.light) {
-                    c.options.setOpacity(0.8);
-                    c.draw.text({text: "POWER-UP", x: x + parallellogramWidth / 2, y: y + 40, color: theme.colors.text.light, font: {size: 30, style: "bold"}, maxWidth: parallellogramWidth - 35});
-                    c.draw.text({text: "AVAILABLE", x: x + parallellogramWidth / 2, y: y + 70, color: theme.colors.text.light, font: {size: 30, style: "bold"}, maxWidth: parallellogramWidth - 35});
-                } else if (shadowColor === theme.colors.error.foreground) {
-                    c.options.setOpacity(0.8);
-                    c.draw.text({text: "CONDITION", x: x + parallellogramWidth / 2, y: y + 40, color: theme.colors.error.foreground, font: {size: 30, style: "bold"}, maxWidth: parallellogramWidth - 35});
-                    c.draw.text({text: "NOT MET", x: x + parallellogramWidth / 2, y: y + 70, color: theme.colors.error.foreground, font: {size: 30, style: "bold"}, maxWidth: parallellogramWidth - 35});
-                } else if (shadowColor === theme.colors.ui.highlight) {
-                    c.options.setOpacity(0.8);
-                    const remaining = ((p.powerup.lastActivated + Game.powerups[p.powerup.selected].duration - game.ping) / 1000).toFixed(1);
-                    if (!isNaN(remaining)) c.draw.text({text: remaining, x: x + parallellogramWidth / 2, y: y + 65, color: theme.colors.ui.highlight, font: {size: 58, style: "bold"}, maxWidth: parallellogramWidth - 35});
+                if (p.lives >= 1 && p.connected) {
+                    if (game.startState >= 6 && p.attacks.rocket.count < Player.maxRockets && !infiniteRocketCount(p.attacks.rocket.count)) c.draw.stroke.arc(c.fastUiC, theme.colors.text.light, x + parallellogramWidth - offsets.rockets, y + 17, 13, 2, (game.ping - p.attacks.rocket.lastRegenerated) / p.attacks.rocket.regenerationInterval);
                 }
-                c.options.setOpacity();
                 
                 i++;
             }
@@ -2778,14 +2815,14 @@ addEventListener("DOMContentLoaded", () => {
              : "Fight to the victory!";
             const color = (game.remaining < 0 && game.winner === null && !game.flooded && frames % 60 < 30) ? theme.colors.error.foreground : theme.getTextColor();
 
-            if (state.current === state.WATCHING_REPLAY && replay) {
+            if (state.current === state.WATCHING_REPLAY && replay && shouldRenderUI) {
                 const replayInformation = `Frame ${replay.frameIndex} / ${replay.frames.length - 1} (${(replay.frameIndex / (replay.frames.length - 1) * 100).toFixed(0)}%)`;
-                c.draw.text({text: replayInformation, x: 100, y: 45, font: {size: 28}, alignment: "left"});
-                c.draw.text({text, x: 100, y: 75, color, font: {size: 20, style: "italic"}, alignment: "left"});
-            } else c.draw.text({text, x: 15 + screenShake.x, y: 35 + screenShake.y, color, font: {size: 28}, alignment: "left"});
+                c.draw.text(c.fastUiC, {text: replayInformation, x: 100, y: 45, font: {size: 28}, alignment: "left"});
+                c.draw.text(c.fastUiC, {text, x: 100, y: 75, color, font: {size: 20, style: "italic"}, alignment: "left"});
+            } else c.draw.text(c.fastUiC, {text, x: 15, y: 35, color, font: {size: 28}, alignment: "left"});
 
-            if (state.current === state.PLAYING_LAN) c.draw.text({text: `Ping: ${Math.max(0, ping)} ms`, x: c.width() - 15, y: 25, font: {size: 12}, alignment: "right"});
-            else if (state.current === state.WATCHING_REPLAY && replay) c.draw.text({text: `${replay.playbackRate}x`, x: c.width() - 525, y: 60, font: {size: 32, style: "bold", shadow: true}});
+            if (state.current === state.PLAYING_LAN) c.draw.text(c.uiC, {text: `Ping: ${Math.max(0, ping)} ms`, x: c.width() - 15, y: 25, font: {size: 12}, alignment: "right"});
+            else if (state.current === state.WATCHING_REPLAY && replay) c.draw.text(c.uiC, {text: `${replay.playbackRate}x`, x: c.width() - 525, y: 60, font: {size: 32, style: "bold", shadow: true}});
         } else drawWater();
 
         if (state.is(state.MAIN_MENU, state.ABOUT, state.TUTORIAL_PROMPT)) {
@@ -2793,91 +2830,91 @@ addEventListener("DOMContentLoaded", () => {
                 c.options.filter.add("brightness(100)");
                 c.options.setShadow(theme.colors.shadow, 4, 1, 1);
             }
-            c.draw.image(image.logo, c.width(0.5) - image.logo.width / 2 + state.change.x, 25, image.logo.width, image.logo.height);
+            c.draw.image(c.uiC, image.logo, c.width(0.5) - image.logo.width / 2 + state.change.x, 25, image.logo.width, image.logo.height);
             c.options.filter.remove("brightness");
             c.options.setShadow();
         }
         
         if (state.current === state.PLAY_MENU) {
-            c.draw.text({text: "PLAY GAME", x: c.width(0.5) + state.change.x, y: 80, font: {size: 58, style: "bold", shadow: true}});
+            c.draw.text(c.uiC, {text: "PLAY GAME", x: c.width(0.5) + state.change.x, y: 80, font: {size: 58, style: "bold", shadow: true}});
 
-            c.draw.text({text: "APPEARANCE", x: c.width(0.3) + state.change.x, y: 180, font: {size: 32, style: "bold", shadow: true}});
-            c.draw.text({text: "GAME MODES", x: c.width(0.7) + state.change.x, y: 180, font: {size: 32, style: "bold", shadow: true}});
-            c.draw.text({text: "Player name:", x: c.width(0.3) - Button.width / 2 - 25 + state.change.x, y: 250, font: {size: 24, shadow: true}, alignment: "left"});
-            c.draw.text({text: "Preferred color:", x: c.width(0.3) - Button.width / 2 - 25 + state.change.x, y: 345, font: {size: 24, shadow: true}, alignment: "left"});
-            c.draw.text({text: "Power-up:", x: c.width(0.3) - Button.width / 2 - 25 + state.change.x, y: 525, font: {size: 24, shadow: true}, alignment: "left"});
-            
+            c.draw.text(c.uiC, {text: "APPEARANCE", x: c.width(0.3) + state.change.x, y: 180, font: {size: 32, style: "bold", shadow: true}});
+            c.draw.text(c.uiC, {text: "GAME MODES", x: c.width(0.7) + state.change.x, y: 180, font: {size: 32, style: "bold", shadow: true}});
+            c.draw.text(c.uiC, {text: "Player name:", x: c.width(0.3) - Button.width / 2 - 25 + state.change.x, y: 250, font: {size: 24, shadow: true}, alignment: "left"});
+            c.draw.text(c.uiC, {text: "Preferred color:", x: c.width(0.3) - Button.width / 2 - 25 + state.change.x, y: 345, font: {size: 24, shadow: true}, alignment: "left"});
+            c.draw.text(c.uiC, {text: "Power-up:", x: c.width(0.3) - Button.width / 2 - 25 + state.change.x, y: 525, font: {size: 24, shadow: true}, alignment: "left"});
+
             const colors = ["Yellow", "Green", "Red", "Blue", "Orange", "Cyan", "Purple", "Gray"];
             const powerups = Game.powerups.map(p => p.name);
-            c.draw.croppedImage(image.sprites, config.appearance.preferredColor * 128, 0, 128, 128, c.width(0.3) - 35 + state.change.x, 370, 70, 70);
-            c.draw.croppedImage(image.powerups, 0, config.appearance.powerup * 70, 140, 70, c.width(0.3) - 70 + state.change.x, 550, 140, 70);
-            c.draw.text({text: colors[config.appearance.preferredColor], x: c.width(0.3) + state.change.x, y: 470, font: {size: 30, style: "bold", shadow: true}, baseline: "middle"});
-            c.draw.text({text: powerups[config.appearance.powerup], x: c.width(0.3) + state.change.x, y: 650, font: {size: 30, style: "bold", shadow: true}, baseline: "middle", maxWidth: Button.width - 90});
+            c.draw.croppedImage(c.uiC, image.sprites, config.appearance.preferredColor * 128, 0, 128, 128, c.width(0.3) - 35 + state.change.x, 370, 70, 70);
+            c.draw.croppedImage(c.uiC, image.powerups, 0, config.appearance.powerup * 70, 140, 70, c.width(0.3) - 70 + state.change.x, 550, 140, 70);
+            c.draw.text(c.uiC, {text: colors[config.appearance.preferredColor], x: c.width(0.3) + state.change.x, y: 470, font: {size: 30, style: "bold", shadow: true}, baseline: "middle"});
+            c.draw.text(c.uiC, {text: powerups[config.appearance.powerup], x: c.width(0.3) + state.change.x, y: 650, font: {size: 30, style: "bold", shadow: true}, baseline: "middle", maxWidth: Button.width - 90});
             if (Game.powerups[config.appearance.powerup].conditionText)
-                c.draw.text({text: Game.powerups[config.appearance.powerup].conditionText, x: c.width(0.3) + state.change.x, y: 690, font: {size: 16, shadow: true}, baseline: "middle"});
+                c.draw.text(c.uiC, {text: Game.powerups[config.appearance.powerup].conditionText, x: c.width(0.3) + state.change.x, y: 690, font: {size: 16, shadow: true}, baseline: "middle"});
         } else if (state.current === state.WAITING_LOCAL && game) {
-            c.draw.text({text: "LOCAL MODE", x: c.width(0.5) + state.change.x, y: 80, font: {size: 58, style: "bold", shadow: true}});
-            c.draw.text({text: "Connect up to 4 controllers to play!", x: c.width(0.5) + state.change.x, y: c.height(0.125) + 30, font: {size: 18, shadow: true}});
+            c.draw.text(c.uiC, {text: "LOCAL MODE", x: c.width(0.5) + state.change.x, y: 80, font: {size: 58, style: "bold", shadow: true}});
+            c.draw.text(c.uiC, {text: "Connect up to 4 controllers to play!", x: c.width(0.5) + state.change.x, y: c.height(0.125) + 30, font: {size: 18, shadow: true}});
             for (let i=0; i<gamepad.playerIndexes.length; i++) {
                 const x = c.width(0.5) - 400;
                 const y = c.height(0.2) + i * 100;
                 const j = gamepad.playerIndexes[i];
 
                 if (!game.players[j].connected) c.options.setOpacity(0.5);
-                c.draw.fill.rect(theme.colors.players[j], x + state.change.x, y, 500, 80, 8);
-                c.draw.croppedImage(image.sprites, j * 128, Number(game.players[j].facing === "l") * 128, 128, 128, x + 8 + state.change.x, y + 8, 64, 64);
+                c.draw.fill.rect(c.uiC, theme.colors.players[j], x + state.change.x, y, 500, 80, 8);
+                c.draw.croppedImage(c.uiC, image.sprites, j * 128, Number(game.players[j].facing === "l") * 128, 128, 128, x + 8 + state.change.x, y + 8, 64, 64);
                 if (game.players[j].connected) {
                     c.options.setShadow(theme.colors.shadow, 4, 1, 1);
-                    c.draw.text({text: game.players[j].name, x: x + state.change.x + 85, y: y + 52, font: {size: 32}, color: theme.colors.text.light, alignment: "left"});
+                    c.draw.text(c.uiC, {text: game.players[j].name, x: x + state.change.x + 85, y: y + 52, font: {size: 32}, color: theme.colors.text.light, alignment: "left"});
                 } else c.options.filter.add("grayscale(1)");
-                c.draw.croppedImage(image.powerups, 0, game.players[j].powerup.selected * 70, 140, 70, x + state.change.x + 595, y, 140, 70);
+                c.draw.croppedImage(c.uiC, image.powerups, 0, game.players[j].powerup.selected * 70, 140, 70, x + state.change.x + 595, y, 140, 70);
                 c.options.filter.remove("grayscale");
                 c.options.setShadow();
                 c.options.setOpacity();
             }
         } else if (state.current === state.LAN_GAME_MENU) {
-            c.draw.text({text: "LAN MODE", x: c.width(0.5) + state.change.x, y: 80, font: {size: 58, style: "bold", shadow: true}});
+            c.draw.text(c.uiC, {text: "LAN MODE", x: c.width(0.5) + state.change.x, y: 80, font: {size: 58, style: "bold", shadow: true}});
 
-            c.draw.text({text: "...or join a game on this network:", x: c.width(0.5) + state.change.x, y: c.height(0.5) - 50, font: {size: 32, style: "bold", shadow: true}});
-            c.draw.text({text: "IP address:", x: c.width(0.5) - 230 + state.change.x, y: c.height(0.5) + 60, font: {size: 24, shadow: true}, alignment: "left"});
-            c.draw.text({text: "Hostname:", x: c.width(0.5) - 230 + state.change.x, y: c.height(0.5) + 150, font: {size: 24, shadow: true}, alignment: "left"});
+            c.draw.text(c.uiC, {text: "...or join a game on this network:", x: c.width(0.5) + state.change.x, y: c.height(0.5) - 50, font: {size: 32, style: "bold", shadow: true}});
+            c.draw.text(c.uiC, {text: "IP address:", x: c.width(0.5) - 230 + state.change.x, y: c.height(0.5) + 60, font: {size: 24, shadow: true}, alignment: "left"});
+            c.draw.text(c.uiC, {text: "Hostname:", x: c.width(0.5) - 230 + state.change.x, y: c.height(0.5) + 150, font: {size: 24, shadow: true}, alignment: "left"});
             c.options.setOpacity(connectionMessage.a);
-            c.draw.text({text: connectionMessage.text, x: c.width(0.5) + state.change.x, y: c.height(0.5) + Button.height + 180, color: connectionMessage.color ?? theme.getTextColor(), font: {size: 30, style: "bold", shadow: true}});
+            c.draw.text(c.uiC, {text: connectionMessage.text, x: c.width(0.5) + state.change.x, y: c.height(0.5) + Button.height + 180, color: connectionMessage.color ?? theme.getTextColor(), font: {size: 30, style: "bold", shadow: true}});
             c.options.setOpacity();
             for (let i=0; i<3; i++)
-                c.draw.text({text: ".", x: c.width(0.5) - 125 + state.change.x + i * 120, y: c.height(0.5) + 120, font: {size: 40, shadow: true}, alignment: "left"});
+                c.draw.text(c.uiC, {text: ".", x: c.width(0.5) - 125 + state.change.x + i * 120, y: c.height(0.5) + 120, font: {size: 40, shadow: true}, alignment: "left"});
         } else if (state.current === state.SETTINGS) {
-            c.draw.text({text: "SETTINGS", x: c.width(0.5) + state.change.x, y: 80, font: {size: 58, style: "bold", shadow: true}});
+            c.draw.text(c.uiC, {text: "SETTINGS", x: c.width(0.5) + state.change.x, y: 80, font: {size: 58, style: "bold", shadow: true}});
 
-            c.draw.text({text: "GRAPHICS", x: c.width(0.3) + state.change.x, y: 180, font: {size: 32, style: "bold", shadow: true}});
-            c.draw.text({text: "CONTROLS", x: c.width(0.7) + state.change.x, y: 180, font: {size: 32, style: "bold", shadow: true}});
+            c.draw.text(c.uiC, {text: "GRAPHICS", x: c.width(0.3) + state.change.x, y: 180, font: {size: 32, style: "bold", shadow: true}});
+            c.draw.text(c.uiC, {text: "CONTROLS", x: c.width(0.7) + state.change.x, y: 180, font: {size: 32, style: "bold", shadow: true}});
             
             const keybinds = ["Move left", "Move right", "Jump", "Attack", "Launch rocket", "Activate power-up", "Game menu"];
             for (let i=0; i<keybinds.length; i++)
-                c.draw.text({text: keybinds[i], x: c.width(0.7) - Button.width / 2 - 25 + state.change.x, y: 250 + i * 60, font: {size: 24, shadow: true}, alignment: "left"});
+                c.draw.text(c.uiC, {text: keybinds[i], x: c.width(0.7) - Button.width / 2 - 25 + state.change.x, y: 250 + i * 60, font: {size: 24, shadow: true}, alignment: "left"});
         } else if (state.current === state.ABOUT) {
-            c.draw.text({text: "by", x: c.width(0.5) + state.change.x, y: c.height(0.37) - 10, font: {size: 24, style: "bold", shadow: true}, baseline: "bottom"});
-            c.draw.image(image.logo_nmgames, c.width(0.5) - image.logo_nmgames.width / 4 + state.change.x, c.height(0.37), image.logo_nmgames.width / 2, image.logo_nmgames.height / 2);
-            c.draw.text({text: `Version ${versions.game}`, x: c.width(0.5) + state.change.x, y: c.height(0.5) + 50, font: {size: 36, style: "bold", shadow: true}, baseline: "bottom"});
-            c.draw.text({text: versions.status, x: c.width(0.5) + state.change.x, y: c.height(0.5) + 70, font: {size: 18, shadow: true}, baseline: "bottom"});
-            c.draw.text({text: `Powered by Electron ${versions.electron} and Chromium ${versions.chromium}`, x: c.width(0.5) + state.change.x, y: c.height(0.5) + 110, font: {size: 18, shadow: true}, baseline: "bottom"});
-            c.draw.text({text: `This program is free and open-source software: you are free to modify and/or redistribute it.`, x: c.width(0.5) + state.change.x, y: c.height(0.7), font: {size: 20, shadow: true}, baseline: "bottom"});
-            c.draw.text({text: `There is NO WARRANTY, to the extent permitted by law.`, x: c.width(0.5) + state.change.x, y: c.height(0.7) + 25, font: {size: 20, shadow: true}, baseline: "bottom"});
-            c.draw.text({text: `Read the GNU General Public License version 3 for further details.`, x: c.width(0.5) + state.change.x, y: c.height(0.7) + 50, font: {size: 20, shadow: true}, baseline: "bottom"});
+            c.draw.text(c.uiC, {text: "by", x: c.width(0.5) + state.change.x, y: c.height(0.37) - 10, font: {size: 24, style: "bold", shadow: true}, baseline: "bottom"});
+            c.draw.image(c.uiC, image.logo_nmgames, c.width(0.5) - image.logo_nmgames.width / 4 + state.change.x, c.height(0.37), image.logo_nmgames.width / 2, image.logo_nmgames.height / 2);
+            c.draw.text(c.uiC, {text: `Version ${versions.game}`, x: c.width(0.5) + state.change.x, y: c.height(0.5) + 50, font: {size: 36, style: "bold", shadow: true}, baseline: "bottom"});
+            c.draw.text(c.uiC, {text: versions.status, x: c.width(0.5) + state.change.x, y: c.height(0.5) + 70, font: {size: 18, shadow: true}, baseline: "bottom"});
+            c.draw.text(c.uiC, {text: `Powered by Electron ${versions.electron} and Chromium ${versions.chromium}`, x: c.width(0.5) + state.change.x, y: c.height(0.5) + 110, font: {size: 18, shadow: true}, baseline: "bottom"});
+            c.draw.text(c.uiC, {text: `This program is free and open-source software: you are free to modify and/or redistribute it.`, x: c.width(0.5) + state.change.x, y: c.height(0.7), font: {size: 20, shadow: true}, baseline: "bottom"});
+            c.draw.text(c.uiC, {text: `There is NO WARRANTY, to the extent permitted by law.`, x: c.width(0.5) + state.change.x, y: c.height(0.7) + 25, font: {size: 20, shadow: true}, baseline: "bottom"});
+            c.draw.text(c.uiC, {text: `Read the GNU General Public License version 3 for further details.`, x: c.width(0.5) + state.change.x, y: c.height(0.7) + 50, font: {size: 20, shadow: true}, baseline: "bottom"});
         } else if (state.current === state.STATISTICS) {
-            c.draw.text({text: "STATISTICS", x: c.width(0.5) + state.change.x, y: 80, font: {size: 58, style: "bold", shadow: true}});
+            c.draw.text(c.uiC, {text: "STATISTICS", x: c.width(0.5) + state.change.x, y: 80, font: {size: 58, style: "bold", shadow: true}});
 
-            c.draw.text({text: "MATCHES PLAYED", x: c.width(0.3) + state.change.x, y: 180, font: {size: 32, style: "bold", shadow: true}});
-            c.draw.text({text: "OTHER STATISTICS", x: c.width(0.7) + state.change.x, y: 180, font: {size: 32, style: "bold", shadow: true}});
+            c.draw.text(c.uiC, {text: "MATCHES PLAYED", x: c.width(0.3) + state.change.x, y: 180, font: {size: 32, style: "bold", shadow: true}});
+            c.draw.text(c.uiC, {text: "OTHER STATISTICS", x: c.width(0.7) + state.change.x, y: 180, font: {size: 32, style: "bold", shadow: true}});
 
             let i;
             let total = 0;
             for (i=0; i<statistics.gamesPlayed.length; i++) {
-                c.draw.croppedImage(image.sprites, i * 128, 0, 128, 128, c.width(0.3) - 100 + state.change.x, 220 + i * 60, 48, 48);
-                c.draw.text({text: statistics.gamesPlayed[i], x: c.width(0.3) - 35 + state.change.x, y: 258 + i * 60, font: {size: 40, shadow: true}, alignment: "left"});
+                c.draw.croppedImage(c.uiC, image.sprites, i * 128, 0, 128, 128, c.width(0.3) - 100 + state.change.x, 220 + i * 60, 48, 48);
+                c.draw.text(c.uiC, {text: statistics.gamesPlayed[i], x: c.width(0.3) - 35 + state.change.x, y: 258 + i * 60, font: {size: 40, shadow: true}, alignment: "left"});
                 total += statistics.gamesPlayed[i];
             }
-            c.draw.text({text: `Total: ${total}`, x: c.width(0.3) + state.change.x, y: 258 + i * 60, font: {size: 32, shadow: true}});
+            c.draw.text(c.uiC, {text: `Total: ${total}`, x: c.width(0.3) + state.change.x, y: 258 + i * 60, font: {size: 32, shadow: true}});
 
             const statProperties = {
                 traveledX: {label: "X distance traveled", format: "* px", fix: 1},
@@ -2890,49 +2927,49 @@ addEventListener("DOMContentLoaded", () => {
             };
             for (i=0; i<Object.keys(statProperties).length; i++) {
                 const stat = Object.keys(statProperties)[i];
-                c.draw.text({text: statProperties[stat].label, x: c.width(0.7) - 225 + state.change.x, y: 260 + i * 30, font: {size: 22, style: "bold", shadow: true}, alignment: "left"});
-                c.draw.text({text: statProperties[stat].format.replace(/^\*(.*)$/, statistics[stat].toFixed(statProperties[stat].fix) + "$1"), x: c.width(0.7) + 225 + state.change.x, y: 260 + i * 30, font: {size: 22, shadow: true}, alignment: "right"});
+                c.draw.text(c.uiC, {text: statProperties[stat].label, x: c.width(0.7) - 225 + state.change.x, y: 260 + i * 30, font: {size: 22, style: "bold", shadow: true}, alignment: "left"});
+                c.draw.text(c.uiC, {text: statProperties[stat].format.replace(/^\*(.*)$/, statistics[stat].toFixed(statProperties[stat].fix) + "$1"), x: c.width(0.7) + 225 + state.change.x, y: 260 + i * 30, font: {size: 22, shadow: true}, alignment: "right"});
             }
         } else if (state.current === state.REPLAYS_MENU) {
-            c.draw.text({text: "REPLAYS", x: c.width(0.5) + state.change.x, y: 80, font: {size: 58, style: "bold", shadow: true}});
-            c.draw.text({text: "Look back at the games you played!", x: c.width(0.5) + state.change.x, y: c.height(0.125) + 30, font: {size: 18, shadow: true}});
-            c.draw.text({text: "WARNING: replays take up a lot of disk space, so only the last 5 games are saved.", x: c.width(0.5) + state.change.x, y: c.height(0.125) + 55, font: {size: 18, shadow: true}});
+            c.draw.text(c.uiC, {text: "REPLAYS", x: c.width(0.5) + state.change.x, y: 80, font: {size: 58, style: "bold", shadow: true}});
+            c.draw.text(c.uiC, {text: "Look back at the games you played!", x: c.width(0.5) + state.change.x, y: c.height(0.125) + 30, font: {size: 18, shadow: true}});
+            c.draw.text(c.uiC, {text: "WARNING: replays take up a lot of disk space, so only the last 5 games are saved.", x: c.width(0.5) + state.change.x, y: c.height(0.125) + 55, font: {size: 18, shadow: true}});
             for (let i=0; i<5; i++) {
                 if (Replay.list[i]) {
                     const title = Replay.list[i].name.slice(0, Replay.list[i].name.lastIndexOf("."));
                     const subtitle = `Size: ${(Replay.list[i].size / 1e6).toFixed(1)} MB`;
-                    c.draw.text({text: title, x: c.width(1/2) - 580 + state.change.x, y: c.height(1/2) - 40 + i * 80, alignment: "left", font: {size: 36, style: "bold", shadow: true}});
-                    c.draw.text({text: subtitle, x: c.width(1/2) - 580 + state.change.x, y: c.height(1/2) - 15 + i * 80, alignment: "left", font: {size: 18, shadow: true}});
-                } else c.draw.text({text: "Empty", x: c.width(1/2) - 580 + state.change.x, y: c.height(1/2) - 30 + i * 80, alignment: "left", font: {size: 36, style: "italic", shadow: true}});
-            } 
+                    c.draw.text(c.uiC, {text: title, x: c.width(1/2) - 580 + state.change.x, y: c.height(1/2) - 40 + i * 80, alignment: "left", font: {size: 36, style: "bold", shadow: true}});
+                    c.draw.text(c.uiC, {text: subtitle, x: c.width(1/2) - 580 + state.change.x, y: c.height(1/2) - 15 + i * 80, alignment: "left", font: {size: 18, shadow: true}});
+                } else c.draw.text(c.uiC, {text: "Empty", x: c.width(1/2) - 580 + state.change.x, y: c.height(1/2) - 30 + i * 80, alignment: "left", font: {size: 36, style: "italic", shadow: true}});
+            }
         } else if (state.current === state.TUTORIAL_PROMPT) {
-            c.draw.text({text: "Welcome to Super Splash Bros 2!", x: c.width(0.5) + state.change.x, y: 350, font: {size: 58, style: "bold", shadow: true}});
-            c.draw.text({text: "Would you like to follow a brief tutorial of this game?", x: c.width(0.5) + state.change.x, y: c.height(0.125) + 330, font: {size: 36, style: "bold", shadow: true}});
+            c.draw.text(c.uiC, {text: "Welcome to Super Splash Bros 2!", x: c.width(0.5) + state.change.x, y: 350, font: {size: 58, style: "bold", shadow: true}});
+            c.draw.text(c.uiC, {text: "Would you like to follow a brief tutorial of this game?", x: c.width(0.5) + state.change.x, y: c.height(0.125) + 330, font: {size: 36, style: "bold", shadow: true}});
         } else if (state.current === state.TUTORIAL_INTRO) {
-            c.draw.text({text: "In this game, you compete against up to 7 other players", x: c.width(0.5) + state.change.x, y: 100, font: {size: 30, style: "bold", shadow: true}});
-            c.draw.text({text: "on a few platforms above water. Your goal is to get the other players", x: c.width(0.5) + state.change.x, y: 140, font: {size: 30, style: "bold", shadow: true}});
-            c.draw.text({text: "into the water, make them lose their lives, and be the last one standing.", x: c.width(0.5) + state.change.x, y: 180, font: {size: 30, style: "bold", shadow: true}});
+            c.draw.text(c.uiC, {text: "In this game, you compete against up to 7 other players", x: c.width(0.5) + state.change.x, y: 100, font: {size: 30, style: "bold", shadow: true}});
+            c.draw.text(c.uiC, {text: "on a few platforms above water. Your goal is to get the other players", x: c.width(0.5) + state.change.x, y: 140, font: {size: 30, style: "bold", shadow: true}});
+            c.draw.text(c.uiC, {text: "into the water, make them lose their lives, and be the last one standing.", x: c.width(0.5) + state.change.x, y: 180, font: {size: 30, style: "bold", shadow: true}});
 
-            c.draw.text({text: "You can play in several gamemodes: Local (up to 4 players with controllers on 1 device),", x: c.width(0.5) + state.change.x, y: 240, font: {size: 30, style: "bold", shadow: true}});
-            c.draw.text({text: "LAN (up to 8 players on 8 devices) and Freeplay (1 player against up to 7 dummies).", x: c.width(0.5) + state.change.x, y: 280, font: {size: 30, style: "bold", shadow: true}});
+            c.draw.text(c.uiC, {text: "You can play in several gamemodes: Local (up to 4 players with controllers on 1 device),", x: c.width(0.5) + state.change.x, y: 240, font: {size: 30, style: "bold", shadow: true}});
+            c.draw.text(c.uiC, {text: "LAN (up to 8 players on 8 devices) and Freeplay (1 player against up to 7 dummies).", x: c.width(0.5) + state.change.x, y: 280, font: {size: 30, style: "bold", shadow: true}});
 
-            c.draw.text({text: "To take out your opponents, you have several attack methods:", x: c.width(0.5) + state.change.x, y: 340, font: {size: 30, style: "bold", shadow: true}});
-            c.draw.text({text: "ordinary melee attacks, rockets and power-ups.", x: c.width(0.5) + state.change.x, y: 380, font: {size: 30, style: "bold", shadow: true}});
+            c.draw.text(c.uiC, {text: "To take out your opponents, you have several attack methods:", x: c.width(0.5) + state.change.x, y: 340, font: {size: 30, style: "bold", shadow: true}});
+            c.draw.text(c.uiC, {text: "ordinary melee attacks, rockets and power-ups.", x: c.width(0.5) + state.change.x, y: 380, font: {size: 30, style: "bold", shadow: true}});
 
-            c.draw.text({text: "Let's practice a little bit by entering a special tutorial game!", x: c.width(0.5) + state.change.x, y: 440, font: {size: 30, style: "bold", shadow: true}});
+            c.draw.text(c.uiC, {text: "Let's practice a little bit by entering a special tutorial game!", x: c.width(0.5) + state.change.x, y: 440, font: {size: 30, style: "bold", shadow: true}});
         } else if (state.current === state.TUTORIAL_POST_GAME) {
-            c.draw.text({text: "You have finished the tutorial game, but you can still practice", x: c.width(0.5) + state.change.x, y: 100, font: {size: 30, style: "bold", shadow: true}});
-            c.draw.text({text: "whenever you want to in a Freeplay game.", x: c.width(0.5) + state.change.x, y: 140, font: {size: 30, style: "bold", shadow: true}});
+            c.draw.text(c.uiC, {text: "You have finished the tutorial game, but you can still practice", x: c.width(0.5) + state.change.x, y: 100, font: {size: 30, style: "bold", shadow: true}});
+            c.draw.text(c.uiC, {text: "whenever you want to in a Freeplay game.", x: c.width(0.5) + state.change.x, y: 140, font: {size: 30, style: "bold", shadow: true}});
 
-            c.draw.text({text: "Furthermore, you just practiced with the Squash power-up, but", x: c.width(0.5) + state.change.x, y: 200, font: {size: 30, style: "bold", shadow: true}});
-            c.draw.text({text: "we got way more power-ups available. You should try those too!", x: c.width(0.5) + state.change.x, y: 240, font: {size: 30, style: "bold", shadow: true}});
+            c.draw.text(c.uiC, {text: "Furthermore, you just practiced with the Squash power-up, but", x: c.width(0.5) + state.change.x, y: 200, font: {size: 30, style: "bold", shadow: true}});
+            c.draw.text(c.uiC, {text: "we got way more power-ups available. You should try those too!", x: c.width(0.5) + state.change.x, y: 240, font: {size: 30, style: "bold", shadow: true}});
 
-            c.draw.text({text: "Want to know more about all the features of this game?", x: c.width(0.5) + state.change.x, y: 300, font: {size: 30, style: "bold", shadow: true}});
-            c.draw.text({text: "On GitHub, there is a detailed explanation page available.", x: c.width(0.5) + state.change.x, y: 340, font: {size: 30, style: "bold", shadow: true}});
-            c.draw.text({text: "You can always visit it easily by pressing your F1 key.", x: c.width(0.5) + state.change.x, y: 380, font: {size: 30, style: "bold", shadow: true}});
+            c.draw.text(c.uiC, {text: "Want to know more about all the features of this game?", x: c.width(0.5) + state.change.x, y: 300, font: {size: 30, style: "bold", shadow: true}});
+            c.draw.text(c.uiC, {text: "On GitHub, there is a detailed explanation page available.", x: c.width(0.5) + state.change.x, y: 340, font: {size: 30, style: "bold", shadow: true}});
+            c.draw.text(c.uiC, {text: "You can always visit it easily by pressing your F1 key.", x: c.width(0.5) + state.change.x, y: 380, font: {size: 30, style: "bold", shadow: true}});
 
-            c.draw.text({text: "Last, but not least: do not forget to change your name and player color!", x: c.width(0.5) + state.change.x, y: 440, font: {size: 30, style: "bold", shadow: true}});
-            c.draw.text({text: "Have fun!", x: c.width(0.5) + state.change.x, y: 500, font: {size: 30, style: "bold", shadow: true}});
+            c.draw.text(c.uiC, {text: "Last, but not least: do not forget to change your name and player color!", x: c.width(0.5) + state.change.x, y: 440, font: {size: 30, style: "bold", shadow: true}});
+            c.draw.text(c.uiC, {text: "Have fun!", x: c.width(0.5) + state.change.x, y: 500, font: {size: 30, style: "bold", shadow: true}});
         } else if (state.current === state.TUTORIAL_GAME) {
             const texts = [
                 `Move with [${Input.displayKeybind(config.controls.moveLeft)}] and [${Input.displayKeybind(config.controls.moveRight)}], jump with [${Input.displayKeybind(config.controls.jump)}]`,
@@ -2942,22 +2979,22 @@ addEventListener("DOMContentLoaded", () => {
                 "Well done! Let's move on with the tutorial."
             ];
 
-            c.draw.text({text: texts[instance.tutorialPhase], x: c.width(0.5) + state.change.x, y: 60, font: {size: 42, style: "bold", shadow: true}});
+            c.draw.text(c.uiC, {text: texts[instance.tutorialPhase], x: c.width(0.5) + state.change.x, y: 60, font: {size: 42, style: "bold", shadow: true}});
         } else if (state.is(state.WAITING_LAN_GUEST, state.WAITING_LAN_HOST, state.WAITING_FREEPLAY) && game) {
             const ips = network.getIPs();
             const mainIP = ips.shift();
             if (state.current === state.WAITING_FREEPLAY) {
-                c.draw.text({text: "FREEPLAY MODE", x: c.width(0.5) + state.change.x, y: 80, font: {size: 58, style: "bold", shadow: true}});
-                c.draw.text({text: "Practice your skills! If you want, you can remove dummies.", x: c.width(0.5) + state.change.x, y: c.height(0.125) + 30, font: {size: 18, shadow: true}});
+                c.draw.text(c.uiC, {text: "FREEPLAY MODE", x: c.width(0.5) + state.change.x, y: 80, font: {size: 58, style: "bold", shadow: true}});
+                c.draw.text(c.uiC, {text: "Practice your skills! If you want, you can remove dummies.", x: c.width(0.5) + state.change.x, y: c.height(0.125) + 30, font: {size: 18, shadow: true}});
             } else {
                 const text = (state.current === state.WAITING_LAN_GUEST) ? "Waiting until start..." : mainIP;
-                c.draw.text({text, x: c.width(0.5) + state.change.x, y: c.height(0.125), font: {size: 58, style: "bold", shadow: true}});
-                if (state.current === state.WAITING_LAN_GUEST) c.draw.text({text: `You have joined ${getEnteredIP().join(".")}`, x: c.width(0.5) + state.change.x, y: c.height(0.125) + 40, font: {size: 18, shadow: true}});
+                c.draw.text(c.uiC, {text, x: c.width(0.5) + state.change.x, y: c.height(0.125), font: {size: 58, style: "bold", shadow: true}});
+                if (state.current === state.WAITING_LAN_GUEST) c.draw.text(c.uiC, {text: `You have joined ${getEnteredIP().join(".")}`, x: c.width(0.5) + state.change.x, y: c.height(0.125) + 40, font: {size: 18, shadow: true}});
             }
 
             if (state.current === state.WAITING_LAN_HOST) {
-                c.draw.text({text: "Players can now connect to this IP address:", x: c.width(0.5) + state.change.x, y: c.height(0.125) - 60, font: {size: 24, shadow: true}});
-                if (ips.length > 0) c.draw.text({text: `If that does not work, try:   ${ips.join("   ")}`, x: c.width(0.5) + state.change.x, y: c.height(0.125) + 30, font: {size: 18, shadow: true}});
+                c.draw.text(c.uiC, {text: "Players can now connect to this IP address:", x: c.width(0.5) + state.change.x, y: c.height(0.125) - 60, font: {size: 24, shadow: true}});
+                if (ips.length > 0) c.draw.text(c.uiC, {text: `If that does not work, try:   ${ips.join("   ")}`, x: c.width(0.5) + state.change.x, y: c.height(0.125) + 30, font: {size: 18, shadow: true}});
             }
 
             for (let i=0; i<8; i++) {
@@ -2965,45 +3002,48 @@ addEventListener("DOMContentLoaded", () => {
                 const y = c.height(0.2) + Math.floor(i / 2) * 100;
 
                 if (game.players[i] === null) c.options.setOpacity(0.5);
-                c.draw.fill.rect(theme.colors.players[i], x + state.change.x, y, 500, 80, 8);
-                c.draw.croppedImage(image.sprites, i * 128, 0, 128, 128, x + 8 + state.change.x, y + 8, 64, 64);
-                if (i === banButton.hoverIndex) c.draw.stroke.rect(theme.colors.error[banButton.active ? "foreground":"background"], x + state.change.x, y, 500, 80, 4, 8);
+                c.draw.fill.rect(c.uiC, theme.colors.players[i], x + state.change.x, y, 500, 80, 8);
+                c.draw.croppedImage(c.uiC, image.sprites, i * 128, 0, 128, 128, x + 8 + state.change.x, y + 8, 64, 64);
+                if (i === banButton.hoverIndex) c.draw.stroke.rect(c.uiC, theme.colors.error[banButton.active ? "foreground":"background"], x + state.change.x, y, 500, 80, 4, 8);
                 if (game.players[i] !== null) {
                     c.options.setShadow(theme.colors.shadow, 4, 1, 1);
                     let additionalText = false;
                     if (playerIndex === game.host || state.current === state.WAITING_FREEPLAY) {
                         additionalText = true;
                         const removalVerb = (state.current === state.WAITING_FREEPLAY) ? "remove" : "ban";
-                        c.draw.text({text: (i === playerIndex) ? "you":`click to ${removalVerb}`, x: x + state.change.x + 85, y: y + 65, font: {size: 20}, color: theme.colors.text.light, alignment: "left"})
+                        c.draw.text(c.uiC, {text: (i === playerIndex) ? "you":`click to ${removalVerb}`, x: x + state.change.x + 85, y: y + 65, font: {size: 20}, color: theme.colors.text.light, alignment: "left"})
                     } else if (i === playerIndex) {
                         additionalText = true;
-                        c.draw.text({text: "you", x: x + state.change.x + 85, y: y + 65, font: {size: 20}, color: theme.colors.text.light, alignment: "left"})
+                        c.draw.text(c.uiC, {text: "you", x: x + state.change.x + 85, y: y + 65, font: {size: 20}, color: theme.colors.text.light, alignment: "left"})
                     } else if (i === game.host) {
                         additionalText = true;
-                        c.draw.text({text: "host", x: x + state.change.x + 85, y: y + 65, font: {size: 20}, color: theme.colors.text.light, alignment: "left"})
+                        c.draw.text(c.uiC, {text: "host", x: x + state.change.x + 85, y: y + 65, font: {size: 20}, color: theme.colors.text.light, alignment: "left"})
                     }
-                    c.draw.text({text: game.players[i].name, x: x + state.change.x + 85, y: y + (additionalText ? 39 : 52), font: {size: 32}, color: theme.colors.text.light, alignment: "left"});
+                    c.draw.text(c.uiC, {text: game.players[i].name, x: x + state.change.x + 85, y: y + (additionalText ? 39 : 52), font: {size: 32}, color: theme.colors.text.light, alignment: "left"});
                 }
                 c.options.setShadow();
                 c.options.setOpacity();
             }
         }
 
-        for (const button of Button.items) {
-            if (button.state !== state.current) continue;
-
-            c.draw.button(button, state.change.x);
-        }
-        for (const input of Input.items) {
-            if (input.state !== state.current) continue;
-
-            c.draw.input(input, state.change.x, Input.keybindsInvalid, (frames % 40 < 20 && !input.keybind));
+        if (true) {
+            for (const button of Button.items) {
+                if (button.state !== state.current) continue;
+    
+                c.draw.button(c.uiC, button, state.change.x);
+            }
+            for (const input of Input.items) {
+                if (input.state !== state.current) continue;
+    
+                c.draw.input(c.uiC, input, state.change.x, Input.keybindsInvalid, (frames % 40 < 20 && !input.keybind));
+            }
         }
 
         if (water.flood.enabled || water.flood.disabling) drawWater();
         if (introLogo.progress < introLogo.duration) {
             c.options.setOpacity(introLogo.a);
             c.draw.image(
+                c.waterC,
                 image.logo_nmgames,
                 (c.width() - image.logo_nmgames.width) / 2 - introLogo.movement / 2,
                 (c.height() - image.logo_nmgames.height) / 2 - introLogo.movement * image._getAspectRatio(image.logo_nmgames) / 2,
@@ -3011,15 +3051,15 @@ addEventListener("DOMContentLoaded", () => {
                 image.logo_nmgames.height + introLogo.movement * image._getAspectRatio(image.logo_nmgames)
             );
             c.options.setOpacity();
-        }
+        }else c.options.setWaterBehindUI();
 
         if (bigNotification.a > 0) {
             c.options.setOpacity(bigNotification.a);
             c.options.setShadow(bigNotification.color, 16, 1, 1);
-            c.draw.text({
+            c.draw.text(c.uiC, {
                 text: bigNotification.text,
-                x: c.width(0.5) + screenShake.x,
-                y: c.height(0.4) + screenShake.y,
+                x: c.width(0.5),
+                y: c.height(0.4),
                 font: {size: bigNotification.size, style: "bold"},
                 baseline: "middle",
                 maxWidth: c.width((bigNotification.size === bigNotification.defaultSize) ? 0.92 : 5)
@@ -3028,49 +3068,49 @@ addEventListener("DOMContentLoaded", () => {
             c.options.setOpacity();
         }
 
-        c.draw.fill.rect(`rgba(0, 0, 0, ${gameMenu.darkness})`, 0, 0, c.width(), c.height());
-        if (gameMenu.x > 0) {
+        c.draw.fill.rect(c.fastUiC, `rgba(0, 0, 0, ${gameMenu.darkness})`, 0, 0, c.width(), c.height());
+        if (gameMenu.x > 0 && shouldRenderUI) {
             const gameMenuGrd = c.options.gradient(0, 0, 0, c.height(), {pos: 0, color: theme.colors.ui.secondary}, {pos: 1, color: theme.colors.ui.primary});
             const logoY = (gameMenu.width - 40) * image._getAspectRatio(image.logo);
             c.options.filter.add("brightness(0.75)");
-            c.draw.fill.rect(gameMenuGrd, 0, 0, gameMenu.x, c.height());
+            c.draw.fill.rect(c.uiC, gameMenuGrd, 0, 0, gameMenu.x, c.height());
             c.options.filter.add("brightness(200)");
-            c.draw.image(image.logo, gameMenu.x - gameMenu.width + 20, 20, gameMenu.width - 40, logoY);
+            c.draw.image(c.uiC, image.logo, gameMenu.x - gameMenu.width + 20, 20, gameMenu.width - 40, logoY);
             c.options.filter.remove("brightness");
 
-            c.draw.text({text: "Game menu", x: gameMenu.x - gameMenu.width / 2, y: logoY + 75, color: theme.colors.text.light, font: {size: 50, style: "bold"}});
-            for (const button of Button.gameMenuItems) c.draw.button(button, 0);
+            c.draw.text(c.uiC, {text: "Game menu", x: gameMenu.x - gameMenu.width / 2, y: logoY + 75, color: theme.colors.text.light, font: {size: 50, style: "bold"}});
+            for (const button of Button.gameMenuItems) c.draw.button(c.uiC, button, 0);
         }
 
-        const alertWidth = c.draw.text({text: errorAlert.text, font: {size: 32}, measure: true}) + 30;
+        const alertWidth = c.draw.text(c.uiC, {text: errorAlert.text, font: {size: 32}, measure: true}) + 30;
         c.options.setShadow(theme.colors.error.foreground, 16);
-        c.draw.fill.rect(theme.colors.error.background, (c.width() - alertWidth) / 2, errorAlert.y, alertWidth, 50, 12);
+        c.draw.fill.rect(c.uiC, theme.colors.error.background, (c.width() - alertWidth) / 2, errorAlert.y, alertWidth, 50, 12);
         c.options.setShadow();
-        c.draw.text({text: errorAlert.text, x: c.width(0.5), y: errorAlert.y + 35, color: theme.colors.text.light, font: {size: 32}});
+        c.draw.text(c.uiC, {text: errorAlert.text, x: c.width(0.5), y: errorAlert.y + 35, color: theme.colors.text.light, font: {size: 32}});
 
         c.options.filter.add("brightness(0.8)");
-        c.draw.croppedImage(image.buttons, 0, 0, Button.initial.width, Button.initial.height, gamepadAlert.x, gamepadAlert.y, gamepadAlert.width, gamepadAlert.height);
+        c.draw.croppedImage(c.uiC, image.buttons, 0, 0, Button.initial.width, Button.initial.height, gamepadAlert.x, gamepadAlert.y, gamepadAlert.width, gamepadAlert.height);
         c.options.filter.remove("brightness");
-        c.draw.text({text: "Connected controllers:", x: gamepadAlert.x + gamepadAlert.offset, y: gamepadAlert.y + 42, color: theme.colors.text.light, font: {size: 17}, alignment: "left"})
-        for (let i=0; i<gamepad.playerIndexes.length; i++) {
+        c.draw.text(c.uiC, {text: "Connected controllers:", x: gamepadAlert.x + gamepadAlert.offset, y: gamepadAlert.y + 42, color: theme.colors.text.light, font: {size: 17}, alignment: "left"})
+        for (let i=0; i<gamepad.playerIndexes.length; i++ && shouldRenderUI) {
             if (gamepad.get()[i] === null) c.options.setOpacity(0.25);
-            c.draw.croppedImage(image.sprites, gamepad.playerIndexes[i] * 128, 0, 128, 128, gamepadAlert.x + i * 50 + gamepadAlert.offset, gamepadAlert.y + gamepadAlert.height - 65, 36, 36);
+            c.draw.croppedImage(c.uiC, image.sprites, gamepad.playerIndexes[i] * 128, 0, 128, 128, gamepadAlert.x + i * 50 + gamepadAlert.offset, gamepadAlert.y + gamepadAlert.height - 65, 36, 36);
         }
         c.options.setOpacity();
 
-        if (dialog.visible) {
-            c.draw.fill.rect(theme.colors.overlay, 0, 0, c.width(), c.height());
-            c.draw.text({text: dialog.header, x: c.width(0.5), y: c.height(0.42), color: theme.colors.text.light, font: {size: 64, style: "bold"}});
-            c.draw.text({text: dialog.text, x: c.width(0.5), y: c.height(0.5), color: theme.colors.text.light, font: {size: 32}});
+        if (dialog.visible && c.uiC) {
+            c.draw.fill.rect(c.uiC, theme.colors.overlay, 0, 0, c.width(), c.height());
+            c.draw.text(c.uiC, {text: dialog.header, x: c.width(0.5), y: c.height(0.42), color: theme.colors.text.light, font: {size: 64, style: "bold"}});
+            c.draw.text(c.uiC, {text: dialog.text, x: c.width(0.5), y: c.height(0.5), color: theme.colors.text.light, font: {size: 32}});
 
-            for (const button of Button.dialogItems) c.draw.button(button, 0);
+            for (const button of Button.dialogItems) c.draw.button(c.uiC, button, 0);
         }
     };
 
     const loop = () => {
         update();
         draw();
-
+        c.updateRC(screenShake.x, screenShake.y);
         requestAnimationFrame(loop);
     };
 

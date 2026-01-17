@@ -434,6 +434,11 @@ class Game {
 
             if (p1.lives === 0) continue;
             if (p1.keys.attack && this.ping - p1.attacks.melee.lastPerformed >= p1.attacks.melee.cooldown && !(this.mode === "tutorial" && this.tutorialPhase !== 1)) {
+                if (p1.parachuteDeployed) {
+                    p1.parachuteDeployed = false;
+                    p1.vy = 0;
+                    p1._vy = 0;
+                }
                 p1.attacks.melee.lastPerformed = this.ping;
                 p1.stats.meleeAttacks++;
                 this.attacks.push(new Attack(p1.index, p1.x + p1.size / 2, p1.y + p1.size / 2));
@@ -710,6 +715,7 @@ class Game {
         }
         if (this.snowStormActive) {
             for (const p of this.players) {
+                if (!p) continue
                 p.vx -= Player.acceleration * (1.05);
                 p.damage(this.ping, 1, 2);
                 // p.vy /= 2;
