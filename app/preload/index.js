@@ -2442,7 +2442,8 @@ addEventListener("DOMContentLoaded", () => {
             if (squashes.now > squashes.then) audio._play(audio.squash);
             if (game.fish.item && game.fish.item.y < 550 && lgame.fish.item && lgame.fish.item.y >= 550) audio._play(audio.fish);
             for (let i=0; i<lives.then.length; i++) {
-                if (lives.now[i] > lives.then[i]) audio._play(audio.lifemender);
+                console.log(lives.now[i], lives.then[i]);
+                if (lives.now[i] > lives.then[i] && ![Infinity, null].includes(lives.then[i])) audio._play(audio.lifemender);
             }
 
         } else parallellogram.hide();
@@ -2520,7 +2521,7 @@ addEventListener("DOMContentLoaded", () => {
                 c.width(),
                 c.height() + 2
             );
-            if (water.flood.showMessage && frames % 100 == 0) c.draw.text(c.uiC, {text: "Good luck, have fun!", x: c.width(0.5), y: water.flood.level + c.height(0.5), color: theme.colors.ui.secondary, font: {size: 100, style: "bold"}, baseline: "middle"});
+            if (water.flood.showMessage && frames % 100 === 0) c.draw.text(c.uiC, {text: "Good luck, have fun!", x: c.width(0.5), y: water.flood.level + c.height(0.5), color: theme.colors.ui.secondary, font: {size: 100, style: "bold"}, baseline: "middle"});
 
             water.imageX = 0;
             while (water.imageX < c.width() + image.water.width) {
@@ -2543,9 +2544,9 @@ addEventListener("DOMContentLoaded", () => {
             if (state.is(state.WAITING_FREEPLAY, state.WAITING_LAN_GUEST, state.WAITING_LAN_HOST, state.WAITING_LOCAL, state.REPLAYS_MENU)) {
                 if (theme.current === "foggy") c.options.filter.add("sepia(1)", "hue-rotate(150deg)", "brightness(1.5)");
                 if (theme.current === "snowy") c.options.filter.add("sepia(1)", "hue-rotate(150deg)", "brightness(100)");
-                c.draw.image(c.platformC, image.platforms, offset.x, offset.y);
                 c.options.filter.remove("sepia", "hue-rotate", "brightness");
             }
+            c.draw.image(c.platformC, image.platforms, offset.x, offset.y);
         } else if (state.is(state.PLAYING_LOCAL, state.PLAYING_LAN, state.PLAYING_FREEPLAY, state.WATCHING_REPLAY, state.TUTORIAL_GAME) && game) {
             if (game.supply.item) {
                 c.options.setOpacity(game.supply.item.takeable ? 1 : 0.35);
@@ -2735,7 +2736,7 @@ addEventListener("DOMContentLoaded", () => {
                 const r = Math.min(Math.max(160, 255 - (p.hit.percentage - 125)), 255);
                 const g = Math.min(Math.max(0, 255 - p.hit.percentage * 2.5), 255);
                 const b = Math.min(Math.max(0, 255 - p.hit.percentage * 5), 255);
-                const shake = (game.ping - p.hit.last < p.hit.effectDuration) ? {x: (Math.random() - 0.5) * screenShake.intensity, y: (Math.random() - 0.5) * screenShake.intensity} : {x: 0, y: 0};
+                // const shake = (game.ping - p.hit.last < p.hit.effectDuration) ? {x: (Math.random() - 0.5) * screenShake.intensity, y: (Math.random() - 0.5) * screenShake.intensity} : {x: 0, y: 0};
                 const color = (game.ping - p.hit.last < p.hit.effectDuration) ? `hsl(${Math.random() * 360}deg 100% 70%)` : `rgb(${r}, ${g}, ${b})`;
                 if (shouldRenderUI) {
                     const decimalOffset = c.draw.text(c.uiC, {text: Math.floor(p.hit.percentage), font: {size: 48, style: "bold"}, measure: true});
@@ -3026,17 +3027,15 @@ addEventListener("DOMContentLoaded", () => {
             }
         }
 
-        if (true) {
-            for (const button of Button.items) {
-                if (button.state !== state.current) continue;
-    
-                c.draw.button(c.uiC, button, state.change.x);
-            }
-            for (const input of Input.items) {
-                if (input.state !== state.current) continue;
-    
-                c.draw.input(c.uiC, input, state.change.x, Input.keybindsInvalid, (frames % 40 < 20 && !input.keybind));
-            }
+        for (const button of Button.items) {
+            if (button.state !== state.current) continue;
+
+            c.draw.button(c.uiC, button, state.change.x);
+        }
+        for (const input of Input.items) {
+            if (input.state !== state.current) continue;
+
+            c.draw.input(c.uiC, input, state.change.x, Input.keybindsInvalid, (frames % 40 < 20 && !input.keybind));
         }
 
         if (water.flood.enabled || water.flood.disabling) drawWater();
