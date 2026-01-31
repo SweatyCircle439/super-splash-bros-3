@@ -1,0 +1,11 @@
+[Plugin]
+id = "autoGame"
+description = "automatically creates games and spreads players across them"
+main = "autoGame.ts"
+
+[BuiltIn]
+default = true
+
+[Config]
+maxGames = -1
+maxPlayers = 8

@@ -1,5 +1,5 @@
-# Super Splash Bros 2
-![Super Splash Bros 2 logo](/app/img/icons/128x128.png)
+# Super Splash Bros 3
+![Super Splash Bros 3 logo](/app/img/icons/128x128.png)
 ### Welcome to the one and only successor of [Super Splash Bros](https://nm-games.eu/g/33), Super Splash Bros 2!
 
 ## What's changed?

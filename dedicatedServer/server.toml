@@ -1,0 +1,20 @@
+[Server]
+port = 19189
+bind = "0.0.0.0"
+name = "Super Splash Bros 3 dedicated server"
+
+[Discover]
+enabled = true
+
+[randomTheme]
+enabled = true
+allowThemes = [
+    "daylight",
+    "sunset",
+    "night",
+    "synthwave",
+    "foggy",
+    "lava",
+    "slime",
+    "snowy"
+]

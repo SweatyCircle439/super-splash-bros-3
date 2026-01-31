@@ -1,10 +1,10 @@
-appId: eu.nm-games.supersplashbros2
-productName: Super Splash Bros 2
+appId: eu.nm-games.supersplashbros3
+productName: Super Splash Bros 3
 linux:
   icon: app/img/icons
-  executableName: supersplashbros2
+  executableName: supersplashbros3
   category: Game;Application;
-  maintainer: N&M Games
+  maintainer: SweatyCircle439
   publish:
   target:
     - target: AppImage
@@ -29,7 +29,7 @@ mac:
         - x64
 win:
   icon: app/img/icons/512x512.png
-  legalTrademarks: Copyright © N&M Games | Licensed as free software (GPL-3.0 or later)
+  legalTrademarks: Copyright © SweatyCircle439 | Licensed as free software (GPL-3.0 or later)
   publish:
   target:
     - target: nsis
@@ -57,4 +57,4 @@ dmg:
       type: link
       path: /Applications
 
-copyright: Copyright © N&M Games | Licensed as free software (GPL-3.0 or later)
+copyright: Copyright © SweatyCircle439 | Licensed as free software (GPL-3.0 or later)

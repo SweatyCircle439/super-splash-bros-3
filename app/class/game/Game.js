@@ -150,12 +150,16 @@ class Game {
     winner;
     ping;
     snowStormActive = false;
+    /** @type {ServerEmitter|null} */
+    server
 
     /**
      * @constructor
      * @param {Modes} mode
+     * @param {ServerEmitter|null} server
      */
-    constructor(mode) {
+    constructor(mode, server = null) {
+        this.server = server;
         this.theme = "";
         this.mode = mode;
         this.players = new Array(8).fill(null);
@@ -350,6 +354,9 @@ class Game {
         if (alive.filter(x => x).length === 1 && this.endedOn < 0 && this.mode !== "freeplay") {
             this.endedOn = this.ping;
             this.winner = alive.indexOf(true);
+            if (this.server) {
+                this.server.emit("gameWon", this.players[this.winner], this)
+            }
         } else if (alive.filter(x => x).length === 0 && this.endedOn < 0 && this.mode === "freeplay") {
             this.endedOn = this.ping;
             this.winner = -1;

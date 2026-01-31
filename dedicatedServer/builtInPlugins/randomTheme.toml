@@ -1,0 +1,19 @@
+[Plugin]
+id = "randomTheme"
+description = "randomly sets the theme when the first player joins the game"
+main = "randomTheme.ts"
+
+[BuiltIn]
+default = false
+
+[Config]
+allowThemes = [
+    "daylight",
+    "sunset",
+    "night",
+    "synthwave",
+    "foggy",
+    "lava",
+    "slime",
+    "snowy"
+]

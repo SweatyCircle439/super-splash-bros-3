@@ -1,0 +1,19 @@
+[Plugin]
+id = "discover"
+description = "randomly sets the theme when the first player joins the game"
+main = "discover.ts"
+
+[BuiltIn]
+default = true
+
+[Config]
+allowThemes = [
+    "daylight",
+    "sunset",
+    "night",
+    "synthwave",
+    "foggy",
+    "lava",
+    "slime",
+    "snowy"
+]

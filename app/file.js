@@ -187,6 +187,7 @@ const space = () => {
  */
 const init = () => {
     paths.mainFolder = join(app.getPath("appData"), app.name);
+    console.log("df", paths.mainFolder);
     paths.settingsFile = join(paths.mainFolder, "settings.json");
     paths.statisticsFile = join(paths.mainFolder, "statistics.json");
     paths.replayFolder = join(paths.mainFolder, "replays");

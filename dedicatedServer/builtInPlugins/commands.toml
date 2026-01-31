@@ -1,0 +1,9 @@
+[Plugin]
+id = "commands"
+description = "basic commands"
+main = "commands.ts"
+
+[BuiltIn]
+default = true
+
+[Config]

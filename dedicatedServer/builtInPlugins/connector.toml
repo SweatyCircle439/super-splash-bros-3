@@ -1,0 +1,9 @@
+[Plugin]
+id = "connector"
+description = "handles join commands from the client"
+main = "connector.ts"
+
+[BuiltIn]
+default = true
+
+[Config]

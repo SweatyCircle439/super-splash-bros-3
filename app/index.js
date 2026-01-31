@@ -36,11 +36,11 @@ if (process.platform === "darwin") {
 }
 
 app.whenReady().then(() => {
-    if (!app.requestSingleInstanceLock()) {
-        dialog.showErrorBox(`Cannot start ${app.name}`, "You already have an instance running on this device!");
-        app.exit(1);
-        return;
-    }
+    // if (!app.requestSingleInstanceLock()) {
+    //     dialog.showErrorBox(`Cannot start ${app.name}`, "You already have an instance running on this device!");
+    //     app.exit(1);
+    //     return;
+    // }
     file.init();
 
     const toggleFullScreen = () => {
@@ -90,15 +90,19 @@ app.whenReady().then(() => {
     });
     console.log("Bluetooth support enabled.");
 
-    window.on("ready-to-show", () => {
+    window.webContents.on("did-finish-load", () => {
+        console.log("finished loading.");
         let totalWidth = 0;
         for (const scr of screen.getAllDisplays()) totalWidth += scr.bounds.width;
+        const conf = file.settings.get();
+        console.log(conf);
         window.webContents.send("start",
-            file.settings.get(),
+            conf,
             { game: version, electron: process.versions.electron, chromium: process.versions.chrome },
             file.space(),
             totalWidth
         );
+        console.log("sent start");
 
         statistics = file.statistics.get();
 

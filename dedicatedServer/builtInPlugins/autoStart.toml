@@ -1,0 +1,10 @@
+[Plugin]
+id = "autoStart"
+description = "automatically starts the game when it is full"
+main = "autoStart.ts"
+
+[BuiltIn]
+default = false
+
+[Config]
+fillTreshHold = 8

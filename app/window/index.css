@@ -2,10 +2,63 @@
     font-family: Shantell Sans;
     src: url("../font/ShantellSans.ttf");
 }
+
+h1 {
+    font-family: Shantell Sans, system-ui;
+}
+
 body {
     width: 100vw;
     height: 100vh;
     margin: 0;
     overflow: hidden;
     background-color: #505050;
+}
+
+#blur-screen {
+    position: absolute;
+    inset: 0;
+    &.blur {
+        background-color: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(10px);
+    }
+    transition: backdrop-filter 250ms ease-in-out, background-color 250ms ease-in-out;
+}
+
+.overlay {
+    background-color: #42cbe0 /** button background color */;
+    border-color: #32a4d9 /** button border color */;
+}
+
+.menu {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100vh;
+    width: 700px;
+    border-right-width: 10px;
+    border-right-style: solid;
+    overflow: auto;
+    display: none;
+    flex-direction: column;
+    /*justify-content: center;*/
+    align-items: center;
+    gap: 1rem;
+    /*padding: 10px;*/
+    box-sizing: border-box;
+    &.open {
+        display: flex;
+    }
+
+    & div {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+}
+
+#close-ssdp {
+    position: absolute;
+    bottom: 10px;
 }

@@ -59,6 +59,8 @@ const parse = (data) => {
     }
 };
 
+const motd = ["Waiting until start..."];
+
 /**
  * Connect with a Super Splash Bros server.
  * @param {{
@@ -87,6 +89,7 @@ const open = (options) => {
     ws.addEventListener("open", () => {
         if (options.onopen && isHost) options.onopen(options.appearance.preferredColor);
         clearTimeout(connectTimeout);
+        motd[0] = "Waiting until start...";
         send({act: "join", version, appearance: options.appearance});
     });
     ws.addEventListener("close", (e) => {
@@ -101,6 +104,9 @@ const open = (options) => {
         const data = parse(e.data);
         if (data.act === "join" && !isHost) options.onopen(data.index);
         else if (data.act === "update" && data.connected > 0) game = data;
+        else if (data.act === "motd") {
+            motd[0] = data.motd;
+        }
 
         if (data.theme) {
             theme.current = data.theme;
@@ -113,4 +119,4 @@ const close = () => {
     if (ws) ws.close();
 };
 
-module.exports = {open, close, isOpen, getGame, sendKeys};
+module.exports = {open, close, isOpen, getGame, sendKeys, motd};

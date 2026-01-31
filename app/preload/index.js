@@ -19,9 +19,12 @@ const Exclusive = require("../class/game/Exclusive");
 const Geyser = require("../class/game/Geyser");
 const Fish = require("../class/game/Fish");
 const Supply = require("../class/game/Supply");
+const {motd} = require("./socket");
 
 let rate = 60;
 let argvprom;
+let argv = [];
+
 if (typeof window !== "undefined") {
     console.log("running in preload");
     document.addEventListener("DOMContentLoaded", _ => {
@@ -120,7 +123,7 @@ const state = {
 
 const checkForUpdates = () => {
     versions.status = "Checking for updates...";
-    fetch("https://api.github.com/repos/NM-Games/super-splash-bros-2/releases/latest").then(res => {
+    fetch("https://api.github.com/repos/SweatyCircle439/super-splash-bros-3/releases/latest").then(res => {
         res.json().then(json => {
             const tag = json.tag_name;
             if (res.ok && tag > versions.game) {
@@ -216,10 +219,11 @@ const getHoverableButtons = () => {
 /**
  * Connect to a game.
  * @param {boolean} asHost
+ * @param {string} ip
  */
-const connect = (asHost) => {
+const connect = (asHost, ip = getEnteredIP().join(".")) => {
     socket.open({
-        ip: (asHost) ? "127.0.0.1" : getEnteredIP().join("."),
+        ip: (asHost) ? "127.0.0.1" : ip,
         appearance: config.appearance,
         onopen: (index) => {
             playerIndex = index;
@@ -494,7 +498,7 @@ const errorAlert = {
     duration: 0,
     shownAt: -6e9,
     /**
-     * Show an error in the top of the screen.
+     * Show an error at the top of the screen.
      * @param {string} text
      * @param {number} duration
      */
@@ -2020,6 +2024,7 @@ addEventListener("DOMContentLoaded", async () => {
         ipcRenderer.send("update-config", config);
     });
     ipcRenderer.on("start", (_e, conf, ver, diskSpace, maxWidth) => {
+        console.log("conf", conf);
         for (let i in conf) config[i] = conf[i];
         for (let i in ver) versions[i] = ver[i];
         freeDiskSpace = diskSpace;
@@ -2034,7 +2039,7 @@ addEventListener("DOMContentLoaded", async () => {
         if (config.graphics.fullScreen) ipcRenderer.send("toggle-fullscreen");
         Button.getButtonById("WaterFlow").text = `Water flow: ${config.graphics.waterFlow ? "ON":"OFF"}`;
         Button.getButtonById("MenuSprites").text = `Menu sprites: ${config.graphics.menuSprites ? "ON":"OFF"}`;
-        
+
         Button.getButtonById("DoReplayRecording").text = `Record replays: ${config.misc.recordReplays ? "ON":"OFF"}`;
 
         for (const k of keybindIDs) {
@@ -2765,19 +2770,19 @@ addEventListener("DOMContentLoaded", async () => {
                 if (shouldRenderUI) {
                     const decimalOffset = c.draw.text(c.uiC, {text: Math.floor(p.hit.percentage), font: {size: 48, style: "bold"}, measure: true});
                     const decimalText = (parallellogramWidth > 250) ? p.hit.percentage.toFixed(1).slice(-2) + "%" : "%";
-    
+
                     const shadowColor = (frames % 30 < 20 && p.powerup.available && p.powerup.meetsCondition) ? theme.colors.text.light
                      : (frames % 30 < 20 && p.powerup.available) ? theme.colors.error.foreground
                      : (frames % 30 < 20 && p.powerup.active) ? theme.colors.ui.highlight
                      : theme.colors.shadow;
                     const shadowBlur = (shadowColor === theme.colors.shadow) ? 4 : 12;
                     c.options.setShadow(shadowColor, shadowBlur);
-    
+
                     if (p.lives < 1 || !p.connected) c.options.setOpacity(0.3);
                     c.draw.fill.parallellogram(c.uiC, theme.colors.players[p.index], x, y, parallellogramWidth, 95);
                     c.draw.croppedImage(c.uiC, image.sprites, p.index * 128, 0, 128, 128, x + offsets.sprite, y - 10, 72, 72);
                     c.options.filter.remove("brightness");
-    
+
                     c.options.setShadow(theme.colors.shadow, 2);
                     if (p.lives === Infinity) {
                         c.draw.text(c.uiC, {text: "∞", x: x + offsets.lives + 4, y: y - 19, color: theme.colors.text.light, font: {size: 16}, alignment: "left", baseline: "middle"});
@@ -2825,7 +2830,7 @@ addEventListener("DOMContentLoaded", async () => {
                 if (p.lives >= 1 && p.connected) {
                     if (game.startState >= 6 && p.attacks.rocket.count < Player.maxRockets && !infiniteRocketCount(p.attacks.rocket.count)) c.draw.stroke.arc(c.fastUiC, theme.colors.text.light, x + parallellogramWidth - offsets.rockets, y + 17, 13, 2, (game.ping - p.attacks.rocket.lastRegenerated) / p.attacks.rocket.regenerationInterval);
                 }
-                
+
                 i++;
             }
 
@@ -2859,7 +2864,7 @@ addEventListener("DOMContentLoaded", async () => {
             c.options.filter.remove("brightness");
             c.options.setShadow();
         }
-        
+
         if (state.current === state.PLAY_MENU) {
             c.draw.text(c.uiC, {text: "PLAY GAME", x: c.width(0.5) + state.change.x, y: 80, font: {size: 58, style: "bold", shadow: true}});
 
@@ -2875,6 +2880,7 @@ addEventListener("DOMContentLoaded", async () => {
             c.draw.croppedImage(c.uiC, image.powerups, 0, config.appearance.powerup * 70, 140, 70, c.width(0.3) - 70 + state.change.x, 550, 140, 70);
             c.draw.text(c.uiC, {text: colors[config.appearance.preferredColor], x: c.width(0.3) + state.change.x, y: 470, font: {size: 30, style: "bold", shadow: true}, baseline: "middle"});
             c.draw.text(c.uiC, {text: powerups[config.appearance.powerup], x: c.width(0.3) + state.change.x, y: 650, font: {size: 30, style: "bold", shadow: true}, baseline: "middle", maxWidth: Button.width - 90});
+            console.log(Game.powerups, config.appearance.powerup, config, JSON.stringify(config, null, 4));
             if (Game.powerups[config.appearance.powerup].conditionText)
                 c.draw.text(c.uiC, {text: Game.powerups[config.appearance.powerup].conditionText, x: c.width(0.3) + state.change.x, y: 690, font: {size: 16, shadow: true}, baseline: "middle"});
         } else if (state.current === state.WAITING_LOCAL && game) {
@@ -2913,7 +2919,7 @@ addEventListener("DOMContentLoaded", async () => {
 
             c.draw.text(c.uiC, {text: "GRAPHICS", x: c.width(0.3) + state.change.x, y: 180, font: {size: 32, style: "bold", shadow: true}});
             c.draw.text(c.uiC, {text: "CONTROLS", x: c.width(0.7) + state.change.x, y: 180, font: {size: 32, style: "bold", shadow: true}});
-            
+
             const keybinds = ["Move left", "Move right", "Jump", "Attack", "Launch rocket", "Activate power-up", "Game menu"];
             for (let i=0; i<keybinds.length; i++)
                 c.draw.text(c.uiC, {text: keybinds[i], x: c.width(0.7) - Button.width / 2 - 25 + state.change.x, y: 250 + i * 60, font: {size: 24, shadow: true}, alignment: "left"});
@@ -3012,7 +3018,7 @@ addEventListener("DOMContentLoaded", async () => {
                 c.draw.text(c.uiC, {text: "FREEPLAY MODE", x: c.width(0.5) + state.change.x, y: 80, font: {size: 58, style: "bold", shadow: true}});
                 c.draw.text(c.uiC, {text: "Practice your skills! If you want, you can remove dummies.", x: c.width(0.5) + state.change.x, y: c.height(0.125) + 30, font: {size: 18, shadow: true}});
             } else {
-                const text = (state.current === state.WAITING_LAN_GUEST) ? "Waiting until start..." : mainIP;
+                const text = (state.current === state.WAITING_LAN_GUEST) ? motd[0] : mainIP;
                 c.draw.text(c.uiC, {text, x: c.width(0.5) + state.change.x, y: c.height(0.125), font: {size: 58, style: "bold", shadow: true}});
                 if (state.current === state.WAITING_LAN_GUEST) c.draw.text(c.uiC, {text: `You have joined ${getEnteredIP().join(".")}`, x: c.width(0.5) + state.change.x, y: c.height(0.125) + 40, font: {size: 18, shadow: true}});
             }
@@ -3139,4 +3145,73 @@ addEventListener("DOMContentLoaded", async () => {
     };
 
     requestAnimationFrame(loop);
+
+    import("@achingbrain/ssdp").then(ssdp => ssdp.default()).then(async bus => {
+        bus.on('error', console.error);
+
+        const serviceType = 'urn:SweatyCircle439:SuperSplashBros3:Server';
+
+        const discovered = [];
+
+        setInterval(async() => {
+            if (!state.isMenu()) return;
+            await Promise.all(discovered.map(async discovery => {
+                try {
+                    await fetch(discovery.URLBase.replace("ssb3", "http"));
+                }catch {
+                    discovery.element.remove();
+                    discovered.splice(discovered.indexOf(discovery), 1);
+                    console.log(`- removed discovery: ${discovery.name}`);
+                }
+            }));
+        }, 100);
+
+        for await (const service of bus.discover({ serviceType })) {
+            if (service.serviceType.startsWith(serviceType)) {
+                const discovery = {
+                    element: document.createElement("splash-server"),
+                    name: service.details.device?.friendlyName,
+                    URLBase: service.details.URLBase,
+                }
+                discovered.push(discovery);
+                console.log(`+ discovered ${discovery.name}(${discovery.URLBase})`);
+                document.getElementById("lan-games").appendChild(discovery.element);
+                discovery.element.setAttribute("name", discovery.name);
+                discovery.element.shadowRoot.getElementById("join").onclick = () => {
+                    connect(false, discovery.URLBase);
+                    closeSSDPMenu();
+                }
+                if (state.isMenu()) {
+                    openSSDPMenu();
+                }
+            }
+        }
+    });
+
+    document.getElementById("close-ssdp").addEventListener("click", _ => {
+        closeSSDPMenu();
+    });
 });
+
+ipcRenderer.on("start", (_e, conf, ver, diskSpace, maxWidth) => {
+    console.log("conf", conf);
+});
+
+function blur() {
+    document.getElementById("blur-screen").classList.add("blur");
+}
+
+function unBlur() {
+    document.getElementById("blur-screen").classList.remove("blur");
+}
+
+function openSSDPMenu() {
+    blur();
+    document.getElementById("menu-ssdp").classList.add("open");
+    // document.getElementById("close-ssdp")
+}
+function closeSSDPMenu() {
+    unBlur();
+    document.getElementById("menu-ssdp").classList.remove("open");
+    // document.getElementById("close-ssdp")
+}
