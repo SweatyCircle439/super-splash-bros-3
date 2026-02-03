@@ -4,7 +4,7 @@ Server.on("playerJoin", async(player, json) => {
     const join = game.join(json.appearance, player.id);
     if (join === -1) player.socket.close(1000, "That game is already full!");
     else {
-        player.name = json.appearance.playerName;
+        player.name = player.socket.data.name = json.appearance.playerName;
         console.write(`\b\b${json.appearance.playerName}(${player.ip}:${player.id}) has joined the game\n> `);
         player.socket.send(JSON.stringify({act: "join", index: join}))
     }

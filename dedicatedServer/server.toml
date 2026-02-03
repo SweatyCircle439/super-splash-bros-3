@@ -1,17 +1,18 @@
+# main server config
 [Server]
 port = 19189
 bind = "0.0.0.0"
-name = "Super Splash Bros 3 dedicated server"
+name = "Super Splash Bros 3 dedicated server" # by default only accessible to plugins, is used by discover to show name
 
-[Discover]
+[discover] # example: enabling the discover plugin
 enabled = true
 
-[randomTheme]
+[randomTheme] # example: enabling and configuring the randomTheme plugin to randomly select the theme, but never select the night theme
 enabled = true
 allowThemes = [
     "daylight",
     "sunset",
-    "night",
+#    "night",
     "synthwave",
     "foggy",
     "lava",

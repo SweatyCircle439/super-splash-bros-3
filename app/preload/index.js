@@ -3178,6 +3178,7 @@ addEventListener("DOMContentLoaded", async () => {
                 document.getElementById("lan-games").appendChild(discovery.element);
                 discovery.element.setAttribute("name", discovery.name);
                 discovery.element.shadowRoot.getElementById("join").onclick = () => {
+                    Input.getInputById("LANHostName").value = discovery.URLBase;
                     connect(false, discovery.URLBase);
                     closeSSDPMenu();
                 }

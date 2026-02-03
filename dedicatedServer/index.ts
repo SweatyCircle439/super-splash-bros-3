@@ -244,9 +244,11 @@ export async function main(cwd = process.cwd()) {
             close(ws, code, message) {
                 console.write(`\b\b${ws.data.name} left the game!\n> `);
                 const game = playerGameMap.get(ws.data.id);
+                if (!game) return;
                 const clientIndex = game.ips.indexOf(ws.data.id);
                 if (game.startState > 0) {
-                    game.players[clientIndex].connected = false;
+                    if(game?.players[clientIndex]?.connected)
+                        game.players[clientIndex].connected = false;
                 }else {
                     game.players[clientIndex] = null;
                     game.ips.splice(game.ips.indexOf(ws.data.id), 1);

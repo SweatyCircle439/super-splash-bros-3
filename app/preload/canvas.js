@@ -611,15 +611,17 @@ module.exports = {
     generate,
     draw,
     updateRC: (offsetX, offsetY) => {
-        realC.clearRect(0, 0, realCanvas.width, realCanvas.height);
-        realC.drawImage(backgroundCanvas, 0, 0);
-        realC.drawImage(platformCanvas, offsetX, offsetY);
-        realC.drawImage(canvas, offsetX, offsetY);
-        if (waterBehindUI) realC.drawImage(waterCanvas, 0, 0);
-        realC.drawImage(smokeCanvas, 0, 0);
-        realC.drawImage(uiCanvas, offsetX, offsetY);
-        realC.drawImage(fastUiCanvas, offsetX, offsetY);
-        if (!waterBehindUI) realC.drawImage(waterCanvas, 0, 0);
+        try {
+            realC.clearRect(0, 0, realCanvas.width, realCanvas.height);
+            realC.drawImage(backgroundCanvas, 0, 0);
+            realC.drawImage(platformCanvas, offsetX, offsetY);
+            realC.drawImage(canvas, offsetX, offsetY);
+            if (waterBehindUI) realC.drawImage(waterCanvas, 0, 0);
+            realC.drawImage(smokeCanvas, 0, 0);
+            realC.drawImage(uiCanvas, offsetX, offsetY);
+            realC.drawImage(fastUiCanvas, offsetX, offsetY);
+            if (!waterBehindUI) realC.drawImage(waterCanvas, 0, 0);
+        } catch (e) {console.error(e)}
     },
     c,
     uiC,
