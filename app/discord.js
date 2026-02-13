@@ -7,7 +7,7 @@ let ready = false;
 
 const client = new Client({transport: "ipc"});
 client.login({
-    clientId: "1245061758662479943",
+    clientId: "1471888518354567258",
     scopes: ["rpc.activities.write"],
     redirectUri: "https://github.com/NM-Games/super-splash-bros-2"
 }).then(() => {}).catch((e) => {

@@ -57,4 +57,12 @@ dmg:
       type: link
       path: /Applications
 
+protocols:
+  - name: Super Splash Bros 3 Server
+    schemes:
+      - ssb3
+  - name: Super Splash Bros 3 Server with SSL
+    schemes:
+      - ssb3s
+
 copyright: Copyright © SweatyCircle439 | Licensed as free software (GPL-3.0 or later)

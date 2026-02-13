@@ -1,5 +1,5 @@
 /**
- * @typedef {"local" | "lan" | "freeplay" | "tutorial"} Modes
+ * @typedef {"local" | "lan" | "freeplay" | "tutorial" | "dummy"} Modes
  * @typedef {import("../../preload/theme").Themes} Themes
  * @typedef {import("../../file").Settings["appearance"]} Appearance
  */
@@ -644,13 +644,15 @@ class Game {
             else this.geysers.splice(i, 1);
         }
 
-        if (
-            (this.elapsed + Fish.start) % Fish.frequency < 1000 &&
-            !this.fish.spawned && this.startState <= 6 && this.dummyDifficulty !== 4
-        ) {
-            this.fish.spawned = true;
-            this.fish.item = new Fish(this.elapsed);
-        } else this.fish.spawned = false;
+        if (this.mode !== "dummy") {
+            if (
+                (this.elapsed + Fish.start) % Fish.frequency < 1000 &&
+                !this.fish.spawned && this.startState <= 6 && this.dummyDifficulty !== 4
+            ) {
+                this.fish.spawned = true;
+                this.fish.item = new Fish(this.elapsed);
+            } else this.fish.spawned = false;
+        }
         if (this.fish.item && !this.fish.item.update(this.elapsed)) {
             if (this.fish.item.takeValue === 1) {
                 this.players[this.fish.item.takenBy].powerup.available = true;
@@ -666,14 +668,16 @@ class Game {
             this.fish.item = null;
         }
 
-        if (
-            (this.elapsed + Supply.start) % Supply.frequency < 1000 && !this.supply.item && 
-            !this.supply.spawned && this.startState <= 6 && this.dummyDifficulty !== 4 &&
-            this.mode !== "tutorial"
-        ) {
-            this.supply.spawned = true;
-            this.supply.item = new Supply(this.elapsed);
-        } else this.supply.spawned = false;
+        if (this.mode !== "dummy") {
+            if (
+                (this.elapsed + Supply.start) % Supply.frequency < 1000 && !this.supply.item &&
+                !this.supply.spawned && this.startState <= 6 && this.dummyDifficulty !== 4 &&
+                this.mode !== "tutorial"
+            ) {
+                this.supply.spawned = true;
+                this.supply.item = new Supply(this.elapsed);
+            } else this.supply.spawned = false;
+        }
         if (this.supply.item && !this.supply.item.update(this.elapsed)) {
             if (this.supply.item.takeValue === 1) {
                 const rand = Math.random();

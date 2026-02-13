@@ -52,8 +52,8 @@ const paths = {};
 const template = {
     appearance: {
         playerName: generateName(),
-        preferredColor: 0,
-        powerup: 0
+        preferredColor: Math.round(Math.random() * 8),
+        powerup: Math.round(Math.random() * 8),
     },
     graphics: {
         theme: "daylight",
@@ -81,19 +81,37 @@ const template = {
 };
 
 /**
+ * Only used by --no-conf
+ * @type {Settings}
+ */
+let current = template;
+/**
+ * Only used by --no-conf
+ * @type {Map<string, any>}
+ */
+const fakeFS = new Map();
+
+/**
  * Retrieve the settings file.
  * @param {string} file
+ * @param {boolean} forceReal force the real filesystem
  */
-const read = (file) => {
-    const contents = readFileSync(file);
-    let json;
+const read = (file, forceReal = false) => {
+    if (process.argv.includes("--no-conf") && !forceReal) {
+        return fakeFS.get(file) ||
+            file === paths.settingsFile? template :
+            file === paths.statisticsFile? getStatisticsTemplate() : null;
+    }else {
+        const contents = readFileSync(file);
+        let json;
 
-    try {
-        json = JSON.parse(contents);
-    } catch {
-        json = {};
+        try {
+            json = JSON.parse(contents);
+        } catch {
+            json = {};
+        }
+        return json;
     }
-    return json;
 };
 
 /**
@@ -102,10 +120,16 @@ const read = (file) => {
  * @param {object} data
  * @param {number} spaces
  * @param {import("fs").NoParamCallback} onfinished
+ * @param {boolean} forceReal force the real filesystem
  */
-const write = (file, data, spaces = 4, onfinished = () => {}) => {
-    const json = JSON.stringify(data, null, spaces);
-    writeFile(file, json.replaceAll("\n", EOL) + EOL, onfinished);
+const write = (file, data, spaces = 4, onfinished = () => {}, forceReal = false) => {
+    if (process.argv.includes("--no-conf") && !forceReal) {
+        fakeFS.set(file, data);
+        onfinished(null);
+    }else {
+        const json = JSON.stringify(data, null, spaces);
+        writeFile(file, json.replaceAll("\n", EOL) + EOL, onfinished);
+    }
 };
 
 // Settings file
@@ -142,8 +166,8 @@ const replays = {
         return listable;
     },
     /** @returns {import("./class/game/Replay").ReplayContent} */
-    read: (name) => read(name.replace(/^%%r/, paths.replayFolder)),
-    write: (name, data, onfinished) => write(join(paths.replayFolder, name), data, 0, onfinished),
+    read: (name) => read(name.replace(/^%%r/, paths.replayFolder), true),
+    write: (name, data, onfinished) => write(join(paths.replayFolder, name), data, 0, onfinished, true),
     delete: (name) => rmSync(join(paths.replayFolder, name), {force: true}),
     validate: async (path) => {
         return new Promise((resolve, reject) => {

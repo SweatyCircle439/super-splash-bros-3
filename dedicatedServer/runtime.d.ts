@@ -63,6 +63,19 @@ declare global {
      * @type {import("../app/class/game/Game")}
      */
     const Game: any;
+    /**
+     * @type {import("../app/class/game/Player")}
+     */
+    const Player: any;
     const idIpMap: Map<string, string>;
     const config: Map<string, any>;
+    const Rocket: any;
+    const Attack: any;
+    const Circle: any;
+    const Exclusive;
+    const Fish;
+    const Geyser;
+    const PoopBomb;
+    const Splash;
+    const Supply;
 }

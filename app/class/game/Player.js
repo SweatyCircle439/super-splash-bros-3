@@ -1,4 +1,3 @@
-const Exclusive = require("./Exclusive");
 const { ipcRenderer } = require("electron");
 
 /**
@@ -89,8 +88,46 @@ class Player {
     parachuteDeployed = false;
     parachuteFilter = "hue-rotate(0deg)";
 
+    static potentialNameWords = [
+        // original
+        "Splasher",
+        // Dutch foods
+        "pinda", // "kaas",
+        "ham", "tosti",
+        "spaghetti",
+        "boeren", "kool",
+        "dop", "erwten", "erwt",
+        "wortel",
+        "kaas",
+        "natte", // "kaas",
+        "salami",
+        "kip",
+        "aardappel",
+        "kartoffel", // not actually Dutch but who cares
+        "broccoli",
+        "bloem", "kool",
+        "pasta",
+        "tomaat",
+        "ui",
+        "knoflook",
+        "met",
+        "frikandel",
+        /*"kaas", */ "souflee",
+        "bami", "bal",
+        /* "bami", */"hap",
+    ]
+
     static generateName() {
-        return "Splasher" + ("000" + Math.ceil(Math.random() * 9999)).slice(-4);
+        function namePart() {
+            return Player.potentialNameWords[Math.floor(Math.random() * (Player.potentialNameWords.length - 1))];
+        }
+        let name = "";
+        for (let i = 0; i < Math.floor(Math.random() * 3) + 1; i++) {
+            name += namePart();
+        }
+        name += ("000" + Math.ceil(Math.random() * 9999)).slice(-4);
+        console.log(name);
+        return name;
     }
 
     /** @returns {import("../../file").Statistics} */
@@ -114,7 +151,6 @@ class Player {
      * @param {number | undefined} index
      * @param {{x: number, y: number}[]} coordinates
      * @param {import("./Game").Modes} gamemode
-     * @param {import("./Game").Themes} theme
      */
     constructor(appearance, index, coordinates, gamemode) {
         this.index = index ?? appearance.preferredColor;
@@ -330,11 +366,7 @@ class Player {
             }
         }
         if (this.lives >= 1 ) {
-            if (game.floodLevel < 0) {
-                this.parachuteDeployed = true;
-            } else {
-                this.parachuteDeployed = false;
-            }
+            this.parachuteDeployed = game.floodLevel < 0;
             const respawnCoordinates = (game.floodLevel < 0) ? {
                 x: Math.random() * 1400 + 50,
                 y: -150

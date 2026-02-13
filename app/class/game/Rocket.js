@@ -14,7 +14,7 @@ class Rocket {
      * @param {number} index
      * @param {number} x
      * @param {number} y
-     * @param {"l" | "r"} direction
+     * @param {"l" | "r" | "u" | "d"} direction
      */
     constructor(index, x, y, direction) {
         this.player = index;
@@ -36,7 +36,8 @@ class Rocket {
             else if (this.explosion.a > 0) this.explosion.a = Math.max(0, this.explosion.a - 0.014);
             else return false;
         } else {
-            this.x += (this.direction === "r") ? Rocket.speed : -Rocket.speed;
+            this.x += (this.direction === "r") ? Rocket.speed : (this.direction === "l") ? -Rocket.speed : 0;
+            this.y += (this.direction === "d") ? Rocket.speed : (this.direction === "u") ? -Rocket.speed : 0;
 
             if (this.#lifespan > 0) this.#lifespan = Math.max(0, this.#lifespan - 0.006);
             else this.explode();

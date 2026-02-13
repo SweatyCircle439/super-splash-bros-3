@@ -7,6 +7,24 @@ import {version} from "../package.json";
 import Game from "../app/class/game/Game";
 //@ts-ignore
 import Player from "../app/class/game/Player";
+//@ts-ignore
+import Rocket from "../app/class/game/Rocket";
+//@ts-ignore
+import Attack from "../app/class/game/Attack";
+//@ts-ignore
+import Circle from "../app/class/game/Circle";
+//@ts-ignore
+import Exclusive from "../app/class/game/Exclusive";
+//@ts-ignore
+import Fish from "../app/class/game/Fish";
+//@ts-ignore
+import Geyser from "../app/class/game/Geyser";
+//@ts-ignore
+import PoopBomb from "../app/class/game/PoopBomb";
+//@ts-ignore
+import Splash from "../app/class/game/Splash";
+//@ts-ignore
+import Supply from "../app/class/game/Supply";
 import { randomUUID } from "crypto";
 import * as vm from "vm";
 import { EventEmitter } from "events";
@@ -39,6 +57,7 @@ class _Plugin {
     config: Map<string, any> = new Map();
     otherConfig: Record<string, any> = {};
     __is_Builtin = false;
+    api: any = {}
     constructor(
         schema: z.ZodType,
         parseConfigMethods: [string, (c: any) => void][],
@@ -86,7 +105,26 @@ class _Plugin {
             Buffer,
             URL,
             Error,
-            process
+            process,
+            Rocket,
+            Attack,
+            Circle,
+            Exclusive,
+            Fish,
+            Geyser,
+            PoopBomb,
+            Splash,
+            Supply,
+            Plugin: {
+                api: this.api
+            },
+            usePlugin: async(pluginID: string) => {
+                await Promise.all(plugins.map(v => Bun.peek(v.ready)));
+                const p = plugins.find(v => v.id === pluginID);
+                if (!pluginID) emitter.emit("stop", `Unmet dependency: "${pluginID}" required by: "${this.id}"`);
+                return p.api;
+            },
+            isNaN
         });
     }
 
@@ -219,6 +257,7 @@ export async function main(cwd = process.cwd()) {
                     }, json));
                 } else if (json.act === "keys") {
                     const game = playerGameMap.get(ws.data.id);
+                    if (!game || game.mode === "dummy") return;
                     const clientIndex = game.ips.indexOf(ws.data.id);
                     if (clientIndex > -1) game.players[clientIndex].setKeys(json.keys);
                 }

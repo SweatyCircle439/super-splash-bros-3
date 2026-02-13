@@ -27,14 +27,15 @@ const fastUiC = fastUiCanvas.getContext("2d");
 const allContexts = [c, smokeC, uiC, platformC, waterC, backgroundC, fastUiC];
 
 const update = () => {
-    canvas.width = backgroundCanvas.width =
+    canvas.width = fastUiCanvas.width =
+        backgroundCanvas.width =
         waterCanvas.width = 
         platformCanvas.width = 
         uiCanvas.width = 
         smokeCanvas.width = 
         realCanvas.width = 
         innerWidth;
-    canvas.height =
+    canvas.height = fastUiCanvas.height =
         backgroundCanvas.height =
         waterCanvas.height =
         platformCanvas.height = 
@@ -83,11 +84,17 @@ const screenshot = (filename) => realCanvas.toBlob(img => {
     a.remove();
 });
 
-/** Clears the entire canvas. */
-const clear = () => {
-    c.clearRect(0, 0, width(), height());
-    waterC.clearRect(0, 0, width(), height());
-    fastUiC.clearRect(0, 0, width(), height());
+/** Clears the entire canvas.
+ * @param {OffscreenCanvasRenderingContext2D?} ctx
+ */
+const clear = (ctx) => {
+    if (ctx) {
+        ctx.clearRect(0, 0, width(), height());
+    }else {
+        c.clearRect(0, 0, width(), height());
+        waterC.clearRect(0, 0, width(), height());
+        fastUiC.clearRect(0, 0, width(), height());
+    }
 };
 
 let smokeProperties = {
@@ -219,7 +226,7 @@ const draw = {
     fill: {
         /**
          * Fill a rectangle on the screen.
-         * @param {CanvasRenderingContext2D} c
+         * @param {OffscreenCanvasRenderingContext2D} c
          * @param {string | CanvasGradient | CanvasPattern} color
          * @param {number} x
          * @param {number} y
@@ -243,7 +250,7 @@ const draw = {
         },
         /**
          * Fill a circle on the screen.
-         * @param {CanvasRenderingContext2D} c
+         * @param {OffscreenCanvasRenderingContext2D} c
          * @param {string | CanvasGradient | CanvasPattern} color
          * @param {number} x
          * @param {number} y
@@ -257,7 +264,7 @@ const draw = {
         },
         /**
          * Fill an up or down pointing triangle on the screen.
-         * @param {CanvasRenderingContext2D} c
+         * @param {OffscreenCanvasRenderingContext2D} c
          * @param {string | CanvasGradient | CanvasPattern} color
          * @param {number} bx
          * @param {number} y
@@ -275,7 +282,7 @@ const draw = {
         },
         /**
          * Fill a left or right pointing triangle on the screen.
-         * @param {CanvasRenderingContext2D} c
+         * @param {OffscreenCanvasRenderingContext2D} c
          * @param {string | CanvasGradient | CanvasPattern} color
          * @param {number} x
          * @param {number} ty
@@ -293,7 +300,7 @@ const draw = {
         },
         /**
          * Fill a parallellogram on the screen.
-         * @param {CanvasRenderingContext2D} c
+         * @param {OffscreenCanvasRenderingContext2D} c
          * @param {string | CanvasGradient | CanvasPattern} color
          * @param {number} x
          * @param {number} y
@@ -315,7 +322,7 @@ const draw = {
     stroke: {
         /**
          * Stroke a rectangle on the screen.
-         * @param {CanvasRenderingContext2D} c
+         * @param {OffscreenCanvasRenderingContext2D} c
          * @param {string | CanvasGradient | CanvasPattern} color
          * @param {number} x
          * @param {number} y
@@ -341,7 +348,7 @@ const draw = {
         },
         /**
          * Stroke an (incomplete) arc on the screen.
-         * @param {CanvasRenderingContext2D} c
+         * @param {OffscreenCanvasRenderingContext2D} c
          * @param {string | CanvasGradient | CanvasPattern} color
          * @param {number} x
          * @param {number} y
@@ -363,7 +370,7 @@ const draw = {
     },
     /**
      * Draw an image on the canvas.
-     * @param {CanvasRenderingContext2D} c
+     * @param {OffscreenCanvasRenderingContext2D} c
      * @param {HTMLImageElement} image
      * @param {number} x
      * @param {number} y
@@ -385,7 +392,7 @@ const draw = {
     },
     /**
      * Draw a cropped image on the canvas.
-     * @param {CanvasRenderingContext2D} c
+     * @param {OffscreenCanvasRenderingContext2D} c
      * @param {HTMLImageElement} image
      * @param {number} sx
      * @param {number} sy
@@ -401,7 +408,7 @@ const draw = {
     },
     /**
      * Draw a line on the screen.
-     * @param {CanvasRenderingContext2D} c
+     * @param {OffscreenCanvasRenderingContext2D} c
      * @param {string | CanvasGradient | CanvasPattern} color
      * @param {number} x1
      * @param {number} y1
@@ -421,7 +428,7 @@ const draw = {
     },
     /**
      * Draw text on the screen.
-     * @param {CanvasRenderingContext2D} c
+     * @param {OffscreenCanvasRenderingContext2D} c
      * @param {{
      *  text: string,
      *  x: number,
@@ -449,7 +456,7 @@ const draw = {
     },
     /**
      * Draw a button on the screen.
-     * @param {CanvasRenderingContext2D} c
+     * @param {OffscreenCanvasRenderingContext2D} c
      * @param {import("../class/ui/Button")} button
      * @param {number} offsetX
      */
@@ -500,7 +507,7 @@ const draw = {
     },
     /**
      * Draw an input field on the screen.
-     * @param {CanvasRenderingContext2D} c
+     * @param {OffscreenCanvasRenderingContext2D} c
      * @param {import("../class/ui/Input")} input
      * @param {number} offsetX
      * @param {boolean} invalid

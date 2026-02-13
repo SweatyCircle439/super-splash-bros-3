@@ -6,7 +6,7 @@ const network = require("./network");
 const file = require("./file");
 const discord = require("./discord");
 
-/** @type {BrowserWindow} */
+/** @type {Electron.CrossProcessExports.BrowserWindow} */
 let window;
 /** @type {Electron.UtilityProcess} */
 let gameserver;
@@ -20,6 +20,8 @@ app.commandLine.appendSwitch('enable-bluetooth');
 app.commandLine.appendSwitch('enable-hid');
 app.commandLine.appendSwitch('enable-generic-sensor-extra-classes');
 app.setName(displayName);
+app.setAsDefaultProtocolClient("ssb3");
+app.setAsDefaultProtocolClient("ssb3s");
 if (process.platform === "darwin") {
     Menu.setApplicationMenu(Menu.buildFromTemplate([{
         label: app.name,
@@ -42,6 +44,7 @@ app.whenReady().then(() => {
     //     return;
     // }
     file.init();
+    // if (process.argv.includes("--no-show")) return process.exit(0);
 
     const toggleFullScreen = () => {
         window.setFullScreen(!window.isFullScreen());
@@ -58,7 +61,8 @@ app.whenReady().then(() => {
             devTools: !app.isPackaged,
             experimentalFeatures: true,
             enableBlinkFeatures: "WebHID,WebBluetooth",
-            preload: join(__dirname, "preload", "index.js")
+            preload: join(__dirname, "preload", "index.js"),
+            backgroundThrottling: false
         }
     });
 
@@ -100,7 +104,8 @@ app.whenReady().then(() => {
             conf,
             { game: version, electron: process.versions.electron, chromium: process.versions.chrome },
             file.space(),
-            totalWidth
+            totalWidth,
+            process.argv.filter(v => v.startsWith("ssb3://") || v.startsWith("ssb3s://"))[0] || null
         );
         console.log("sent start");
 

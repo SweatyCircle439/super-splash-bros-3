@@ -136,7 +136,7 @@ const checkForUpdates = () => {
                         y: () => c.height(0.75),
                         onclick: () => {
                             dialog.close();
-                            shell.openExternal("https://github.com/NM-Games/super-splash-bros-2/releases");
+                            shell.openExternal("https://github.com/SweatyCircle439/super-splash-bros-3/releases");
                         }
                     }), new Button({
                         text: "Later",
@@ -1164,7 +1164,7 @@ Button.items = [
         state: state.ABOUT,
         x: () => c.width(1/2),
         y: () => c.height(9/10) - 25,
-        onclick: () => shell.openExternal("https://github.com/NM-Games/super-splash-bros-2")
+        onclick: () => shell.openExternal("https://github.com/SweatyCircle439/super-splash-bros-3")
     }),
     new Button({
         text: "Discord",
@@ -2023,7 +2023,7 @@ addEventListener("DOMContentLoaded", async () => {
         Button.getButtonById("Fullscreen").text = `Full screen: ${enabled ? "ON":"OFF"}`;
         ipcRenderer.send("update-config", config);
     });
-    ipcRenderer.on("start", (_e, conf, ver, diskSpace, maxWidth) => {
+    ipcRenderer.on("start", (_e, conf, ver, diskSpace, maxWidth, server) => {
         console.log("conf", conf);
         for (let i in conf) config[i] = conf[i];
         for (let i in ver) versions[i] = ver[i];
@@ -2048,6 +2048,21 @@ addEventListener("DOMContentLoaded", async () => {
         }
 
         audio._update(config.audio);
+
+        if (server) {
+            new Promise(res => {
+                function loop() {
+                    if (introLogo.progress >= introLogo.duration) {
+                        clearInterval(loop);
+                        res();
+                    }
+                }
+                setInterval(loop, 10);
+            }).then(_ => {
+                Input.getInputById("LANHostName").value = server;
+                connect(false, server);
+            });
+        }
     });
     ipcRenderer.on("replay-error", (_e, err) => {
         dialog.close();
@@ -2082,8 +2097,8 @@ addEventListener("DOMContentLoaded", async () => {
     });
 
     setInterval(() => {
-        const discordState = (state.current === state.PLAYING_LOCAL) ? "Local mode"
-        : (state.current === state.PLAYING_LAN) ? "LAN mode"
+        const discordState = (state.current === state.PLAYING_LOCAL) ? "Playing locally"
+        : (state.current === state.PLAYING_LAN) ? "Playing multiplayer"
         : (state.current === state.PLAYING_FREEPLAY) ? "Freeplay mode"
         : (state.current === state.WATCHING_REPLAY) ? "Watching a replay"
         : (state.is(state.TUTORIAL_INTRO, state.TUTORIAL_GAME, state.TUTORIAL_POST_GAME)) ? "Following the tutorial"
@@ -2282,6 +2297,7 @@ addEventListener("DOMContentLoaded", async () => {
 
             if (lgame.startState === 0 && game.startState === 1) {
                 water.flood.enable(false, !state.is(state.TUTORIAL_INTRO, state.TUTORIAL_GAME));
+                c.clear(c.uiC);
             } else if (lgame.startState === 1 && game.startState === 2) {
                 state.current = (state.current === state.WAITING_LOCAL) ? state.PLAYING_LOCAL
                 : (state.current === state.WAITING_FREEPLAY) ? state.PLAYING_FREEPLAY
@@ -2325,25 +2341,27 @@ addEventListener("DOMContentLoaded", async () => {
             } else if (lgame.startState === 7 && game.startState === 8 && state.current !== state.WATCHING_REPLAY) leave(state.is(state.PLAYING_LAN));
 
             if (!state.is(state.WAITING_LOCAL, state.PLAYING_LOCAL, state.LAN_GAME_MENU, state.WATCHING_REPLAY)) {
-                if (!lgame.players[playerIndex].powerup.available && game.players[playerIndex].powerup.available) {
-                    const powerupName = Game.powerups[game.players[playerIndex].powerup.selected].name.toUpperCase();
-                    bigNotification.show(`${powerupName} READY`, theme.colors.bigNotification.g, 120, 0.003);
-                    audio._play(audio.powerup);
-                }
-                if (lgame.players[playerIndex].lives < game.players[playerIndex].lives && game.players[playerIndex].lives !== Infinity) {
-                    const delta = game.players[playerIndex].lives - lgame.players[playerIndex].lives;
-                    bigNotification.show(`+${delta} LIFE${delta !== 1? "S" : ""}`, theme.colors.bigNotification.g, 120, 0.003);
-                }
-                if (
-                    lgame.players[playerIndex].attacks.rocket.count < game.players[playerIndex].attacks.rocket.count - 1 &&
-                    game.players[playerIndex].lives !== Infinity
-                ) {
-                    const delta = game.players[playerIndex].attacks.rocket.count - lgame.players[playerIndex].attacks.rocket.count;
-                    bigNotification.show(`+${delta} ROCKET${delta !== 1? "S" : ""}`, theme.colors.bigNotification.g, 120, 0.003);
-                }
-                if (lgame.players[playerIndex].viewDistance < game.players[playerIndex].viewDistance) {
-                    const delta = game.players[playerIndex].viewDistance - lgame.players[playerIndex].viewDistance;
-                    bigNotification.show(`+${delta} VIEW DISTANCE`);
+                if (lgame.players[playerIndex] && game.players[playerIndex]){
+                    if (!lgame.players[playerIndex].powerup.available && game.players[playerIndex].powerup.available) {
+                        const powerupName = Game.powerups[game.players[playerIndex].powerup.selected].name.toUpperCase();
+                        bigNotification.show(`${powerupName} READY`, theme.colors.bigNotification.g, 120, 0.003);
+                        audio._play(audio.powerup);
+                    }
+                    if (lgame.players[playerIndex].lives < game.players[playerIndex].lives && game.players[playerIndex].lives !== Infinity) {
+                        const delta = game.players[playerIndex].lives - lgame.players[playerIndex].lives;
+                        bigNotification.show(`+${delta} LIFE${delta !== 1 ? "S" : ""}`, theme.colors.bigNotification.g, 120, 0.003);
+                    }
+                    if (
+                        lgame.players[playerIndex].attacks.rocket.count < game.players[playerIndex].attacks.rocket.count - 1 &&
+                        game.players[playerIndex].attacks.rocket.count !== Infinity
+                    ) {
+                        const delta = game.players[playerIndex].attacks.rocket.count - lgame.players[playerIndex].attacks.rocket.count;
+                        bigNotification.show(`+${delta} ROCKET${delta !== 1 ? "S" : ""}`, theme.colors.bigNotification.g, 120, 0.003);
+                    }
+                    if (lgame.players[playerIndex].viewDistance < game.players[playerIndex].viewDistance) {
+                        const delta = game.players[playerIndex].viewDistance - lgame.players[playerIndex].viewDistance;
+                        bigNotification.show(`+${delta} VIEW DISTANCE`);
+                    }
                 }
                 if (!lgame.snowStormActive && game.snowStormActive) {
                     bigNotification.show(`SNOW STORM!`);
@@ -2351,13 +2369,15 @@ addEventListener("DOMContentLoaded", async () => {
                 if (lgame.snowStormActive && !game.snowStormActive) {
                     bigNotification.show(`STORM OVER`);
                 }
-                if (lgame.players[playerIndex].lives > 0 && game.players[playerIndex].lives === 0) {
-                    bigNotification.show("GAME OVER", theme.colors.bigNotification.r, 200, 0.008);
-                    audio._play(audio.end_defeat);
+                if (lgame.players[playerIndex] && game.players[playerIndex]) {
+                    if (lgame.players[playerIndex].lives > 0 && game.players[playerIndex].lives === 0) {
+                        bigNotification.show("GAME OVER", theme.colors.bigNotification.r, 200, 0.008);
+                        audio._play(audio.end_defeat);
+                    }
                 }
 
                 if (state.is(state.PLAYING_FREEPLAY) && lgame.players.filter(p => p && p.lives > 0).length > 1 &&
-                 game.players.filter(p => p && p.lives > 0).length === 1 && game.players[playerIndex].lives > 0) {
+                 game.players.filter(p => p && p.lives > 0).length === 1 && game.players[playerIndex]?.lives > 0) {
                     bigNotification.show("VICTORY!", theme.colors.bigNotification.g, 220, 0.008);
                     audio._play(audio.end_victory);
                 }
@@ -2550,7 +2570,7 @@ addEventListener("DOMContentLoaded", async () => {
                 c.width(),
                 c.height() + 2
             );
-            if (water.flood.showMessage && frames % 100 === 0) c.draw.text(c.uiC, {text: "Good luck, have fun!", x: c.width(0.5), y: water.flood.level + c.height(0.5), color: theme.colors.ui.secondary, font: {size: 100, style: "bold"}, baseline: "middle"});
+            if (water.flood.showMessage) c.draw.text(c.fastUiC, {text: "Good luck, have fun!", x: c.width(0.5), y: water.flood.level + c.height(0.5), color: theme.colors.ui.secondary, font: {size: 100, style: "bold"}, baseline: "middle"});
 
             water.imageX = 0;
             while (water.imageX < c.width() + image.water.width) {
@@ -2569,13 +2589,13 @@ addEventListener("DOMContentLoaded", async () => {
                 if (sprite.visible) c.draw.croppedImage(c.uiC, image.sprites, sprite.color * 128, sprite.facing * 128, 128, 128, sprite.x, sprite.y, 96, 96);
             }
             drawWater();
+            if (theme.current === "foggy") c.options.filter.add("sepia(1)", "hue-rotate(150deg)", "brightness(1.5)");
+            if (theme.current === "snowy") c.options.filter.add("sepia(1)", "hue-rotate(150deg)", "brightness(100)");
             c.draw.clearPlatforms();
-            if (state.is(state.WAITING_FREEPLAY, state.WAITING_LAN_GUEST, state.WAITING_LAN_HOST, state.WAITING_LOCAL, state.REPLAYS_MENU)) {
-                if (theme.current === "foggy") c.options.filter.add("sepia(1)", "hue-rotate(150deg)", "brightness(1.5)");
-                if (theme.current === "snowy") c.options.filter.add("sepia(1)", "hue-rotate(150deg)", "brightness(100)");
+            if (!state.is(state.ABOUT)) {
+                c.draw.image(c.platformC, image.platforms, offset.x, offset.y);
                 c.options.filter.remove("sepia", "hue-rotate", "brightness");
             }
-            c.draw.image(c.platformC, image.platforms, offset.x, offset.y);
         } else if (state.is(state.PLAYING_LOCAL, state.PLAYING_LAN, state.PLAYING_FREEPLAY, state.WATCHING_REPLAY, state.TUTORIAL_GAME) && game) {
             if (game.supply.item) {
                 c.options.setOpacity(game.supply.item.takeable ? 1 : 0.35);
@@ -2604,6 +2624,13 @@ addEventListener("DOMContentLoaded", async () => {
                 );
             }
             c.options.setShadow();
+            if (frames % 100 === 0 || game.players.filter(Boolean).filter(v => Boolean(v.exclusivePlatform)).length > 0) {
+                if (theme.current === "foggy") c.options.filter.add("sepia(1)", "hue-rotate(150deg)", "brightness(1.5)");
+                if (theme.current === "snowy") c.options.filter.add("sepia(1)", "hue-rotate(150deg)", "brightness(100)");
+                c.draw.clearPlatforms();
+                c.draw.image(c.platformC, image.platforms, offset.x, offset.y);
+                c.options.filter.remove("sepia", "hue-rotate", "brightness");
+            }
 
             for (const p of game.players) {
                 if (p === null) continue;
@@ -2767,16 +2794,16 @@ addEventListener("DOMContentLoaded", async () => {
                 const b = Math.min(Math.max(0, 255 - p.hit.percentage * 5), 255);
                 // const shake = (game.ping - p.hit.last < p.hit.effectDuration) ? {x: (Math.random() - 0.5) * screenShake.intensity, y: (Math.random() - 0.5) * screenShake.intensity} : {x: 0, y: 0};
                 const color = (game.ping - p.hit.last < p.hit.effectDuration) ? `hsl(${Math.random() * 360}deg 100% 70%)` : `rgb(${r}, ${g}, ${b})`;
-                if (shouldRenderUI) {
-                    const decimalOffset = c.draw.text(c.uiC, {text: Math.floor(p.hit.percentage), font: {size: 48, style: "bold"}, measure: true});
-                    const decimalText = (parallellogramWidth > 250) ? p.hit.percentage.toFixed(1).slice(-2) + "%" : "%";
+                const decimalOffset = c.draw.text(c.uiC, {text: Math.floor(p.hit.percentage), font: {size: 48, style: "bold"}, measure: true});
+                const decimalText = (parallellogramWidth > 250) ? p.hit.percentage.toFixed(1).slice(-2) + "%" : "%";
 
-                    const shadowColor = (frames % 30 < 20 && p.powerup.available && p.powerup.meetsCondition) ? theme.colors.text.light
-                     : (frames % 30 < 20 && p.powerup.available) ? theme.colors.error.foreground
-                     : (frames % 30 < 20 && p.powerup.active) ? theme.colors.ui.highlight
-                     : theme.colors.shadow;
-                    const shadowBlur = (shadowColor === theme.colors.shadow) ? 4 : 12;
-                    c.options.setShadow(shadowColor, shadowBlur);
+                const shadowColor = (frames % 30 < 20 && p.powerup.available && p.powerup.meetsCondition) ? theme.colors.text.light
+                    : (frames % 30 < 20 && p.powerup.available) ? theme.colors.error.foreground
+                        : (frames % 30 < 20 && p.powerup.active) ? theme.colors.ui.highlight
+                            : theme.colors.shadow;
+                const shadowBlur = (shadowColor === theme.colors.shadow) ? 4 : 12;
+                c.options.setShadow(shadowColor, shadowBlur);
+                if (shouldRenderUI) {
 
                     if (p.lives < 1 || !p.connected) c.options.setOpacity(0.3);
                     c.draw.fill.parallellogram(c.uiC, theme.colors.players[p.index], x, y, parallellogramWidth, 95);
@@ -2808,25 +2835,26 @@ addEventListener("DOMContentLoaded", async () => {
                             baseline: "middle"
                         });
                     }
-                    c.options.setShadow();
-                    c.options.setOpacity();
                     if (!p.connected) c.draw.image(c.uiC, image.disconnected, x + (parallellogramWidth - 115) / 2, y - 10, 115, 115);
                     else if (p.lives < 1) c.draw.image(c.uiC, image.eliminated, x + (parallellogramWidth - 115) / 2, y - 10, 115, 115);
-                    else if (shadowColor === theme.colors.text.light) {
+                }
+                if (p.connected && p.lives >= 1) {
+                    if (shadowColor === theme.colors.text.light) {
                         c.options.setOpacity(0.8);
-                        c.draw.text(c.uiC, {text: "POWER-UP", x: x + parallellogramWidth / 2, y: y + 40, color: theme.colors.text.light, font: {size: 30, style: "bold"}, maxWidth: parallellogramWidth - 35});
-                        c.draw.text(c.uiC, {text: "AVAILABLE", x: x + parallellogramWidth / 2, y: y + 70, color: theme.colors.text.light, font: {size: 30, style: "bold"}, maxWidth: parallellogramWidth - 35});
+                        c.draw.text(c.fastUiC, {text: "POWER-UP", x: x + parallellogramWidth / 2, y: y + 40, color: theme.colors.text.light, font: {size: 30, style: "bold"}, maxWidth: parallellogramWidth - 35});
+                        c.draw.text(c.fastUiC, {text: "AVAILABLE", x: x + parallellogramWidth / 2, y: y + 70, color: theme.colors.text.light, font: {size: 30, style: "bold"}, maxWidth: parallellogramWidth - 35});
                     } else if (shadowColor === theme.colors.error.foreground) {
                         c.options.setOpacity(0.8);
-                        c.draw.text(c.uiC, {text: "CONDITION", x: x + parallellogramWidth / 2, y: y + 40, color: theme.colors.error.foreground, font: {size: 30, style: "bold"}, maxWidth: parallellogramWidth - 35});
-                        c.draw.text(c.uiC, {text: "NOT MET", x: x + parallellogramWidth / 2, y: y + 70, color: theme.colors.error.foreground, font: {size: 30, style: "bold"}, maxWidth: parallellogramWidth - 35});
+                        c.draw.text(c.fastUiC, {text: "CONDITION", x: x + parallellogramWidth / 2, y: y + 40, color: theme.colors.error.foreground, font: {size: 30, style: "bold"}, maxWidth: parallellogramWidth - 35});
+                        c.draw.text(c.fastUiC, {text: "NOT MET", x: x + parallellogramWidth / 2, y: y + 70, color: theme.colors.error.foreground, font: {size: 30, style: "bold"}, maxWidth: parallellogramWidth - 35});
                     } else if (shadowColor === theme.colors.ui.highlight) {
                         c.options.setOpacity(0.8);
                         const remaining = ((p.powerup.lastActivated + Game.powerups[p.powerup.selected].duration - game.ping) / 1000).toFixed(1);
-                        if (!isNaN(remaining)) c.draw.text(c.uiC, {text: remaining, x: x + parallellogramWidth / 2, y: y + 65, color: theme.colors.ui.highlight, font: {size: 58, style: "bold"}, maxWidth: parallellogramWidth - 35});
+                        if (!isNaN(remaining)) c.draw.text(c.fastUiC, {text: remaining, x: x + parallellogramWidth / 2, y: y + 65, color: theme.colors.ui.highlight, font: {size: 58, style: "bold"}, maxWidth: parallellogramWidth - 35});
                     }
-                    c.options.setOpacity();
                 }
+                c.options.setShadow();
+                c.options.setOpacity();
                 if (p.lives >= 1 && p.connected) {
                     if (game.startState >= 6 && p.attacks.rocket.count < Player.maxRockets && !infiniteRocketCount(p.attacks.rocket.count)) c.draw.stroke.arc(c.fastUiC, theme.colors.text.light, x + parallellogramWidth - offsets.rockets, y + 17, 13, 2, (game.ping - p.attacks.rocket.lastRegenerated) / p.attacks.rocket.regenerationInterval);
                 }
@@ -2974,7 +3002,7 @@ addEventListener("DOMContentLoaded", async () => {
                 } else c.draw.text(c.uiC, {text: "Empty", x: c.width(1/2) - 580 + state.change.x, y: c.height(1/2) - 30 + i * 80, alignment: "left", font: {size: 36, style: "italic", shadow: true}});
             }
         } else if (state.current === state.TUTORIAL_PROMPT) {
-            c.draw.text(c.uiC, {text: "Welcome to Super Splash Bros 2!", x: c.width(0.5) + state.change.x, y: 350, font: {size: 58, style: "bold", shadow: true}});
+            c.draw.text(c.uiC, {text: "Welcome to Super Splash Bros 3!", x: c.width(0.5) + state.change.x, y: 350, font: {size: 58, style: "bold", shadow: true}});
             c.draw.text(c.uiC, {text: "Would you like to follow a brief tutorial of this game?", x: c.width(0.5) + state.change.x, y: c.height(0.125) + 330, font: {size: 36, style: "bold", shadow: true}});
         } else if (state.current === state.TUTORIAL_INTRO) {
             c.draw.text(c.uiC, {text: "In this game, you compete against up to 7 other players", x: c.width(0.5) + state.change.x, y: 100, font: {size: 30, style: "bold", shadow: true}});
@@ -3001,7 +3029,7 @@ addEventListener("DOMContentLoaded", async () => {
 
             c.draw.text(c.uiC, {text: "Last, but not least: do not forget to change your name and player color!", x: c.width(0.5) + state.change.x, y: 440, font: {size: 30, style: "bold", shadow: true}});
             c.draw.text(c.uiC, {text: "Have fun!", x: c.width(0.5) + state.change.x, y: 500, font: {size: 30, style: "bold", shadow: true}});
-        } else if (state.current === state.TUTORIAL_GAME) {
+        } else if (state.current === state.TUTORIAL_GAME ) {
             const texts = [
                 `Move with [${Input.displayKeybind(config.controls.moveLeft)}] and [${Input.displayKeybind(config.controls.moveRight)}], jump with [${Input.displayKeybind(config.controls.jump)}]`,
                 `Use [${Input.displayKeybind(config.controls.attack)}] to activate your attack`,
@@ -3011,7 +3039,7 @@ addEventListener("DOMContentLoaded", async () => {
             ];
 
             c.draw.text(c.uiC, {text: texts[instance.tutorialPhase], x: c.width(0.5) + state.change.x, y: 60, font: {size: 42, style: "bold", shadow: true}});
-        } else if (state.is(state.WAITING_LAN_GUEST, state.WAITING_LAN_HOST, state.WAITING_FREEPLAY) && game) {
+        } else if (state.is(state.WAITING_LAN_GUEST, state.WAITING_LAN_HOST, state.WAITING_FREEPLAY) && game && game.startState === 0) {
             const ips = network.getIPs();
             const mainIP = ips.shift();
             if (state.current === state.WAITING_FREEPLAY) {
@@ -3019,11 +3047,25 @@ addEventListener("DOMContentLoaded", async () => {
                 c.draw.text(c.uiC, {text: "Practice your skills! If you want, you can remove dummies.", x: c.width(0.5) + state.change.x, y: c.height(0.125) + 30, font: {size: 18, shadow: true}});
             } else {
                 const text = (state.current === state.WAITING_LAN_GUEST) ? motd[0] : mainIP;
-                c.draw.text(c.uiC, {text, x: c.width(0.5) + state.change.x, y: c.height(0.125), font: {size: 58, style: "bold", shadow: true}});
-                if (state.current === state.WAITING_LAN_GUEST) c.draw.text(c.uiC, {text: `You have joined ${getEnteredIP().join(".")}`, x: c.width(0.5) + state.change.x, y: c.height(0.125) + 40, font: {size: 18, shadow: true}});
+                const tSplit = text.split("\n");
+                c.draw.text(c.uiC, {text: tSplit.shift(), x: c.width(0.5) + state.change.x, y: c.height(0.125), font: {size: 58, style: "bold", shadow: true}});
+                if (state.current === state.WAITING_LAN_GUEST)
+                    c.draw.text(c.uiC, {
+                        text: `You have joined ${getEnteredIP().join(".")}`,
+                        x: c.width(0.5) + state.change.x,
+                        y: c.height(0.125) + (tSplit.length > 0? 60 : 40),
+                        font: {size: 18, shadow: true}
+                    });
+                if (tSplit.length > 0)
+                    c.draw.text(c.uiC, {
+                        text: tSplit.shift(),
+                        x: c.width(0.5) + state.change.x,
+                        y: c.height(0.125) + 40,
+                        font: {size: 18, shadow: true}
+                    });
             }
 
-            if (state.current === state.WAITING_LAN_HOST) {
+            if (state.current === state.WAITING_LAN_HOST && game.startState === 0) {
                 c.draw.text(c.uiC, {text: "Players can now connect to this IP address:", x: c.width(0.5) + state.change.x, y: c.height(0.125) - 60, font: {size: 24, shadow: true}});
                 if (ips.length > 0) c.draw.text(c.uiC, {text: `If that does not work, try:   ${ips.join("   ")}`, x: c.width(0.5) + state.change.x, y: c.height(0.125) + 30, font: {size: 18, shadow: true}});
             }
@@ -3146,7 +3188,15 @@ addEventListener("DOMContentLoaded", async () => {
 
     requestAnimationFrame(loop);
 
-    import("@achingbrain/ssdp").then(ssdp => ssdp.default()).then(async bus => {
+    new Promise(res => {
+        function loop() {
+            if (introLogo.progress >= introLogo.duration) {
+                clearInterval(loop);
+                setTimeout(res, 1000);
+            }
+        }
+        setInterval(loop, 10);
+    }).then(_ => import("@achingbrain/ssdp")).then(ssdp => ssdp.default()).then(async bus => {
         bus.on('error', console.error);
 
         const serviceType = 'urn:SweatyCircle439:SuperSplashBros3:Server';
@@ -3182,7 +3232,7 @@ addEventListener("DOMContentLoaded", async () => {
                     connect(false, discovery.URLBase);
                     closeSSDPMenu();
                 }
-                if (state.isMenu()) {
+                if (state.isMenu() && !water.flood.enabled) {
                     openSSDPMenu();
                 }
             }
@@ -3192,10 +3242,6 @@ addEventListener("DOMContentLoaded", async () => {
     document.getElementById("close-ssdp").addEventListener("click", _ => {
         closeSSDPMenu();
     });
-});
-
-ipcRenderer.on("start", (_e, conf, ver, diskSpace, maxWidth) => {
-    console.log("conf", conf);
 });
 
 function blur() {
