@@ -8,6 +8,7 @@ const theme = require("./theme");
 const { port } = require("../network");
 const { getButtonById } = require("../class/ui/Button");
 const { version } = require("../../package.json");
+const platform = require("supersplashbros3/platform");
 
 /** @type {WebSocket} */
 let ws;
@@ -51,7 +52,7 @@ const sendKeys = (keys) => {
  * @returns {SocketData}
  */
 const parse = (data) => {
-    const payload = Buffer.isBuffer(data) ? new TextDecoder().decode(data) : data;
+    const payload = !platform.isWeb && Buffer.isBuffer(data) ? new TextDecoder().decode(data) : data;
     try {
         return JSON.parse(payload);
     } catch {

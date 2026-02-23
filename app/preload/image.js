@@ -25,7 +25,8 @@ const { readdirSync } = require("fs");
  *  water: HTMLImageElement,
  *  supply: HTMLImageElement,
  *  parachute: HTMLImageElement,
- *  _getAspectRatio: AspectRatioCallback
+ *  _getAspectRatio: AspectRatioCallback,
+ *  loadingPromise: Promise<any>,
  * }}
  */
 const image = {
@@ -40,5 +41,12 @@ readdirSync(join(__dirname, "..", "img", "game")).forEach((file) => {
         image[name].src = join(__dirname, "..", "img", "game", file);
     }
 });
+
+image.loadingPromise = Promise.all(Object.values(image).map(v => new Promise(resolve => {
+    if (v instanceof Image) {
+        v.onload = () => resolve(v);
+        v.onerror = () => resolve(v);
+    }else resolve(v);
+})));
 
 module.exports = image;

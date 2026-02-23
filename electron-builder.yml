@@ -24,7 +24,7 @@ mac:
   icon: app/img/icons
   publish:
   target:
-    - target: dmg
+    - target: zip
       arch:
         - x64
 win:

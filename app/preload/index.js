@@ -1,6 +1,5 @@
 /** @callback EmptyCallback */
-
-const { ipcRenderer, clipboard, shell } = require("electron");
+console.log("init");
 
 const c = require("./canvas");
 const image = require("./image");
@@ -8,11 +7,10 @@ const audio = require("./audio");
 const theme = require("./theme");
 const socket = require("./socket");
 const gamepad = require("./gamepad");
-const network = require("../network");
+const platform = require("supersplashbros3/platform");
 const Button = require("../class/ui/Button");
 const Input = require("../class/ui/Input");
 const MenuSprite = require("../class/ui/MenuSprite");
-const Replay = require("../class/game/Replay");
 const Game = require("../class/game/Game");
 const Player = require("../class/game/Player");
 const Exclusive = require("../class/game/Exclusive");
@@ -21,14 +19,30 @@ const Fish = require("../class/game/Fish");
 const Supply = require("../class/game/Supply");
 const {motd} = require("./socket");
 
+const {
+    network,
+    isWeb,
+    openTab,
+    readClipboard,
+    showItemInFolder,
+    Replay,
+    events,
+    updateConfig,
+    toggleFullscreen,
+    quit,
+    updateStats,
+} = platform;
+
 let rate = 60;
-let argvprom;
+let argvprom = null;
 let argv = [];
 
-if (typeof window !== "undefined") {
+console.log(platform);
+
+if (typeof window !== "undefined" && !isWeb) {
     console.log("running in preload");
     document.addEventListener("DOMContentLoaded", _ => {
-        argvprom = ipcRenderer.invoke("get-argv").then(
+        argvprom = require("electron").ipcRenderer.invoke("get-argv").then(
             /**
              * @param {string[]} _argv
              */
@@ -136,7 +150,7 @@ const checkForUpdates = () => {
                         y: () => c.height(0.75),
                         onclick: () => {
                             dialog.close();
-                            shell.openExternal("https://github.com/SweatyCircle439/super-splash-bros-3/releases");
+                            openTab("https://github.com/SweatyCircle439/super-splash-bros-3/releases");
                         }
                     }), new Button({
                         text: "Later",
@@ -276,7 +290,7 @@ const leave = (playAgain = false) => {
         if (replay && config.misc.recordReplays) replay.save();
 
         if (state.current === state.PLAYING_LAN) {
-            if (playerIndex === game.host) ipcRenderer.send("stop-gameserver", playAgain); else {
+            if (playerIndex === game.host) require("electron").ipcRenderer.send("stop-gameserver", playAgain); else {
                 socket.close();
                 errorAlert.suppress();
                 state.current = state.LAN_GAME_MENU;
@@ -299,7 +313,7 @@ const leave = (playAgain = false) => {
         konamiEasterEgg.deactivate();
         if (!playAgain && !water.flood.disabling) water.flood.disable();
     });
-    if (playerIndex > -1) ipcRenderer.send("update-stats", game.players[playerIndex].stats, playerIndex);
+    if (playerIndex > -1) updateStats(game.players[playerIndex].stats, playerIndex);
 };
 
 const stop = () => {
@@ -320,7 +334,7 @@ const keyChange = () => (JSON.stringify(keys) !== JSON.stringify(lastKeys));
 const keybindIDs = ["moveLeft", "moveRight", "jump", "attack", "launchRocket", "activatePowerup", "gameMenu"];
 const updateKeybinds = () => {
     for (const k of keybindIDs) config.controls[k] = Input.getInputById(`Keybind-${k}`).keybind;
-    ipcRenderer.send("update-config", config);
+    updateConfig(config);
 };
 
 /**
@@ -594,6 +608,7 @@ const replayActions = {
      * Import and watch a replay.
      */
     import: () => {
+        const {ipcRenderer} = require("electron");
         ipcRenderer.send("import-replay");
         ipcRenderer.once("replay-imported", (_e, path) => replayActions.watch(path));
     },
@@ -602,6 +617,7 @@ const replayActions = {
      * @param {number} index
      */
     export: (index) => {
+        const {ipcRenderer} = require("electron");
         ipcRenderer.send("export-replay", Replay.list[index].name);
         ipcRenderer.once("replay-export-started", () => dialog.show("Exporting replay...", "This may take a while."));
         ipcRenderer.once("replay-export-finished", (_e, path) => {
@@ -616,7 +632,7 @@ const replayActions = {
                 y: () => c.height(0.75),
                 onclick: () => {
                     dialog.close();
-                    shell.showItemInFolder(path);
+                    showItemInFolder(path);
                 }
             }));
         });
@@ -635,6 +651,7 @@ const replayActions = {
                 y: () => c.height(0.75),
                 danger: true,
                 onclick: () => {
+                    const {ipcRenderer} = require("electron");
                     dialog.close();
                     ipcRenderer.send("delete-replay", Replay.list[index].name);
                     Button.getButtonById(`Replay-${index}-Watch`).disabled =
@@ -711,6 +728,7 @@ Button.items = [
         width: Button.width,
         height: Button.height,
         onclick: function() {
+            const {ipcRenderer} = require("electron");
             this.hovering = false;
             ipcRenderer.send("get-stats");
             state.change.to(state.STATISTICS, false);
@@ -724,6 +742,7 @@ Button.items = [
         width: Button.width,
         height: Button.height,
         onclick: function() {
+            const {ipcRenderer} = require("electron");
             this.hovering = false;
             ipcRenderer.send("get-replays");
             state.change.to(state.REPLAYS_MENU, false);
@@ -739,7 +758,7 @@ Button.items = [
         danger: true,
         onclick: function() {
             this.hovering = false;
-            ipcRenderer.send("quit");
+            quit();
         }
     }),
     // Play menu
@@ -982,6 +1001,7 @@ Button.items = [
         y: () => c.height(1/4) + 20,
         onclick: function() {
             setConnectElementsState(true);
+            const {ipcRenderer} = require("electron");
             ipcRenderer.send("start-gameserver", theme.current);
             ipcRenderer.once("gameserver-created", () => connect(true));
         }
@@ -1025,7 +1045,7 @@ Button.items = [
         onclick: function() {
             config.audio.music = !config.audio.music;
             audio._update(config.audio);
-            ipcRenderer.send("update-config", config);
+            updateConfig(config);
         }
     }),
     new Button({
@@ -1036,7 +1056,7 @@ Button.items = [
         onclick: function() {
             config.audio.sfx = !config.audio.sfx;
             audio._update(config.audio);
-            ipcRenderer.send("update-config", config);
+            updateConfig(config);
         }
     }),
     // for the sprite color switch:
@@ -1049,7 +1069,7 @@ Button.items = [
         height: Button.height / 2,
         onclick: () => {
             if (config.appearance.preferredColor-- <= 0) config.appearance.preferredColor = 7;
-            ipcRenderer.send("update-config", config);
+            updateConfig(config);
         }
     }),
     new Button({
@@ -1061,7 +1081,7 @@ Button.items = [
         height: Button.height / 2,
         onclick: () => {
             if (config.appearance.preferredColor++ >= 7) config.appearance.preferredColor = 0;
-            ipcRenderer.send("update-config", config);
+            updateConfig(config);
         }
     }),
     // for the powerup switch:
@@ -1075,7 +1095,7 @@ Button.items = [
         onclick: () => {
             if (config.appearance.powerup-- <= 0)
                 config.appearance.powerup = Game.powerups.length - 1;
-            ipcRenderer.send("update-config", config);
+            updateConfig(config);
         }
     }),
     new Button({
@@ -1088,7 +1108,7 @@ Button.items = [
         onclick: () => {
             if (config.appearance.powerup++ >= Game.powerups.length - 1)
                 config.appearance.powerup = 0;
-            ipcRenderer.send("update-config", config);
+            updateConfig(config);
         }
     }),
     new Button({
@@ -1100,7 +1120,7 @@ Button.items = [
         onclick: function() {
             config.graphics.theme = theme.current = theme.cycle();
             this.text = `Theme: ${theme.current}`;
-            ipcRenderer.send("update-config", config);
+            updateConfig(config);
         }
     }),
     new Button({
@@ -1110,7 +1130,7 @@ Button.items = [
         x: () => c.width(0.3),
         y: () => 380,
         onclick: function() {
-            ipcRenderer.send("toggle-fullscreen");
+            toggleFullscreen();
             this.hovering = false;
         }
     }),
@@ -1123,7 +1143,7 @@ Button.items = [
         onclick: function() {
             config.graphics.waterFlow = !config.graphics.waterFlow;
             this.text = `Water flow: ${config.graphics.waterFlow ? "ON":"OFF"}`;
-            ipcRenderer.send("update-config", config);
+            updateConfig(config);
         }
     }),
     new Button({
@@ -1135,7 +1155,7 @@ Button.items = [
         onclick: function() {
             config.graphics.menuSprites = !config.graphics.menuSprites;
             this.text = `Menu sprites: ${config.graphics.menuSprites ? "ON":"OFF"}`;
-            ipcRenderer.send("update-config", config);
+            updateConfig(config);
         }
     }),
     // About menu
@@ -1157,21 +1177,21 @@ Button.items = [
         state: state.ABOUT,
         x: () => c.width(1/2) - Button.width - 50,
         y: () => c.height(9/10) - 25,
-        onclick: () => shell.openExternal("https://nm-games.eu")
+        onclick: () => openTab("https://nm-games.eu")
     }),
     new Button({
         text: "GitHub",
         state: state.ABOUT,
         x: () => c.width(1/2),
         y: () => c.height(9/10) - 25,
-        onclick: () => shell.openExternal("https://github.com/SweatyCircle439/super-splash-bros-3")
+        onclick: () => openTab("https://github.com/SweatyCircle439/super-splash-bros-3")
     }),
     new Button({
         text: "Discord",
         state: state.ABOUT,
         x: () => c.width(1/2) + Button.width + 50,
         y: () => c.height(9/10) - 25,
-        onclick: () => shell.openExternal("https://discord.gg/CaMaGRXDqB")
+        onclick: () => openTab("https://discord.gg/CaMaGRXDqB")
     }),
     // Statistics menu
     new Button({
@@ -1211,7 +1231,7 @@ Button.items = [
         onclick: function() {
             config.misc.recordReplays = !config.misc.recordReplays;
             this.text = `Record replays: ${config.misc.recordReplays ? "ON":"OFF"}`;
-            ipcRenderer.send("update-config", config);
+            updateConfig(config);
         }
     }),
     new Button({
@@ -1520,6 +1540,7 @@ Button.items = [
                         danger: true,
                         onclick: () => {
                             dialog.close();
+                            const {ipcRenderer} = require("electron");
                             ipcRenderer.send("stop-gameserver");
                         }
                     }), new Button({
@@ -1529,7 +1550,7 @@ Button.items = [
                         onclick: () => dialog.close()
                     })
                 );
-            } else ipcRenderer.send("stop-gameserver");
+            } else require("electron").ipcRenderer.send("stop-gameserver");
         }
     }),
     new Button({
@@ -1538,7 +1559,7 @@ Button.items = [
         state: state.WAITING_LAN_HOST,
         x: () => c.width(1/2) - 360,
         y: () => c.height(17/20),
-        onclick: () => ipcRenderer.send("lan-cycle-theme")
+        onclick: () => require("electron").ipcRenderer.send("lan-cycle-theme")
     }),
     new Button({
         id: "LANUnban",
@@ -1548,6 +1569,7 @@ Button.items = [
         x: () => c.width(1/2),
         y: () => c.height(17/20),
         onclick: function() {
+            const {ipcRenderer} = require("electron");
             this.hovering = false;
             ipcRenderer.send("lan-unban");
         }
@@ -1560,6 +1582,7 @@ Button.items = [
         y: () => c.height(17/20),
         disabled: true,
         onclick: function() {
+            const {ipcRenderer} = require("electron");
             this.hovering = false;
             banButton.hoverIndex = -1;
             ipcRenderer.send("lan-start");
@@ -1646,7 +1669,7 @@ Button.items = [
         danger: true,
         onclick: function() {
             this.hovering = false;
-            ipcRenderer.send("quit");
+            quit();
         }
     }),
     new Button({
@@ -1670,7 +1693,7 @@ Button.items = [
         onclick: function() {
             this.hovering = false;
             config.misc.tutorialPrompt = false;
-            ipcRenderer.send("update-config", config);
+            updateConfig(config);
             state.change.to(state.MAIN_MENU);
         }
     }),
@@ -1692,7 +1715,7 @@ Button.items = [
         onclick: function() {
             this.hovering = false;
             config.misc.tutorialPrompt = false;
-            ipcRenderer.send("update-config", config);
+            updateConfig(config);
             state.change.to(state.MAIN_MENU);
         }
     })
@@ -1742,7 +1765,7 @@ Button.gameMenuItems = [
         onclick: function() {
             config.audio.music = !config.audio.music;
             audio._update(config.audio);
-            ipcRenderer.send("update-config", config);
+            updateConfig(config);
         }
     }),
     new Button({
@@ -1752,7 +1775,7 @@ Button.gameMenuItems = [
         onclick: function() {
             config.audio.sfx = !config.audio.sfx;
             audio._update(config.audio);
-            ipcRenderer.send("update-config", config);
+            updateConfig(config);
         }
     })
 ];
@@ -1905,7 +1928,7 @@ Input.items = [
         onblur: function() {
             if (this.value.trim().length === 0) this.value = Player.generateName();
             config.appearance.playerName = this.value.slice(0, this.maxLength);
-            ipcRenderer.send("update-config", config);
+            updateConfig(config);
         }
     }),
     new Input({
@@ -1974,6 +1997,7 @@ Input.items = [
 ];
 
 let smokeTime = 0;
+let lastSmokeRender = 0;
 let wereJustTransitioning = false;
 setInterval(() => {
     smokeTime++;
@@ -1981,9 +2005,16 @@ setInterval(() => {
 
 addEventListener("DOMContentLoaded", async () => {
     // setInterval(c.updateRC, 1000/120);
-    await argvprom;
+    console.log("waiting for images to load");
+    await image.loadingPromise;
+    console.log("images loaded");
+    console.log("waiting for argvprom");
+    if (argvprom) await argvprom;
+    console.log("argvprom finished");
 
     c.init();
+
+    console.log(audio);
 
     audio.music.loop = true;
 
@@ -1995,9 +2026,10 @@ addEventListener("DOMContentLoaded", async () => {
     const ipFragments = ip.split(".");
     for (let i=0; i<3; i++) Input.getInputById(`IP-${i + 1}`).value = ipFragments[i];
 
-    ipcRenderer.on("quit-check", () => {
+    events.onQuitCheck = quit => {
         if (state.is(state.PLAYING_LOCAL, state.PLAYING_LAN, state.PLAYING_FREEPLAY)
          || (state.current === state.WAITING_LAN_HOST && game.connected > 1)) {
+            if (isWeb) return;
             dialog.show(
                 "Are you sure you want to quit?",
                 (state.current === state.PLAYING_LAN) ? "You will not be able to rejoin this game."
@@ -2008,7 +2040,7 @@ addEventListener("DOMContentLoaded", async () => {
                     x: () => c.width(0.35),
                     y: () => c.height(0.75),
                     danger: true,
-                    onclick: () => ipcRenderer.send("quit")
+                    onclick: () => quit()
                 }), new Button({
                     text: "No",
                     x: () => c.width(0.65),
@@ -2016,14 +2048,14 @@ addEventListener("DOMContentLoaded", async () => {
                     onclick: () => dialog.close()
                 })
             );
-        } else ipcRenderer.send("quit");
-    });
-    ipcRenderer.on("fullscreen-status", (_e, enabled) => {
+        } else quit();
+    };
+    if (!isWeb) require("electron").ipcRenderer.on("fullscreen-status", (_e, enabled) => {
         config.graphics.fullScreen = enabled;
         Button.getButtonById("Fullscreen").text = `Full screen: ${enabled ? "ON":"OFF"}`;
-        ipcRenderer.send("update-config", config);
+        updateConfig(config);
     });
-    ipcRenderer.on("start", (_e, conf, ver, diskSpace, maxWidth, server) => {
+    events.onStart = (conf, ver, diskSpace, maxWidth, server) => {
         console.log("conf", conf);
         for (let i in conf) config[i] = conf[i];
         for (let i in ver) versions[i] = ver[i];
@@ -2036,7 +2068,7 @@ addEventListener("DOMContentLoaded", async () => {
         theme.current = config.graphics.theme;
         Button.getButtonById("Theme").text = `Theme: ${theme.current}`;
 
-        if (config.graphics.fullScreen) ipcRenderer.send("toggle-fullscreen");
+        if (config.graphics.fullScreen) toggleFullscreen();
         Button.getButtonById("WaterFlow").text = `Water flow: ${config.graphics.waterFlow ? "ON":"OFF"}`;
         Button.getButtonById("MenuSprites").text = `Menu sprites: ${config.graphics.menuSprites ? "ON":"OFF"}`;
 
@@ -2063,66 +2095,70 @@ addEventListener("DOMContentLoaded", async () => {
                 connect(false, server);
             });
         }
-    });
-    ipcRenderer.on("replay-error", (_e, err) => {
-        dialog.close();
-        water.flood.disable();
-        errorAlert.show(err);
-    });
-    ipcRenderer.on("gameserver-error", (_e, err) => {
-        errorAlert.show(`${err.name}: ${err.message}`);
-        setConnectElementsState(false);
-    });
-    ipcRenderer.on("gameserver-stopped", (_e, playAgain) => {
-        errorAlert.suppress();
-        if (state.current === state.WAITING_LAN_HOST) state.change.to(state.LAN_GAME_MENU, true, stop); else {
-            state.current = state.LAN_GAME_MENU;
-            setTimeout(() => {
-                stop();
-                if (playAgain) Button.getButtonById("CreateGame").onclick();
-            }, 50);
-        }
-    });
+    }
+    if (!isWeb) {
+        const {ipcRenderer} = require("electron");
+        ipcRenderer.on("replay-error", (_e, err) => {
+            dialog.close();
+            water.flood.disable();
+            errorAlert.show(err);
+        });
+        ipcRenderer.on("gameserver-error", (_e, err) => {
+            errorAlert.show(`${err.name}: ${err.message}`);
+            setConnectElementsState(false);
+        });
+        ipcRenderer.on("gameserver-stopped", (_e, playAgain) => {
+            errorAlert.suppress();
+            if (state.current === state.WAITING_LAN_HOST) state.change.to(state.LAN_GAME_MENU, true, stop); else {
+                state.current = state.LAN_GAME_MENU;
+                setTimeout(() => {
+                    stop();
+                    if (playAgain) Button.getButtonById("CreateGame").onclick();
+                }, 50);
+            }
+        });
 
-    ipcRenderer.on("stats-list", (_e, stats) => statistics = stats);
-    ipcRenderer.on("replay-list", (_e, replays) => {
-        Replay.list = replays;
-        for (let i=0; i<5; i++) {
-            if (!Button.getButtonById(`Replay-${i}-Watch`)) continue;
+        ipcRenderer.on("replay-list", (_e, replays) => {
+            Replay.list = replays;
+            for (let i=0; i<5; i++) {
+                if (!Button.getButtonById(`Replay-${i}-Watch`)) continue;
 
-            Button.getButtonById(`Replay-${i}-Watch`).disabled =
-            Button.getButtonById(`Replay-${i}-Export`).disabled =
-            Button.getButtonById(`Replay-${i}-Delete`).disabled = !Replay.list[i];
-        }
-    });
+                Button.getButtonById(`Replay-${i}-Watch`).disabled =
+                    Button.getButtonById(`Replay-${i}-Export`).disabled =
+                        Button.getButtonById(`Replay-${i}-Delete`).disabled = !Replay.list[i];
+            }
+        });
 
-    setInterval(() => {
-        const discordState = (state.current === state.PLAYING_LOCAL) ? "Playing locally"
-        : (state.current === state.PLAYING_LAN) ? "Playing multiplayer"
-        : (state.current === state.PLAYING_FREEPLAY) ? "Freeplay mode"
-        : (state.current === state.WATCHING_REPLAY) ? "Watching a replay"
-        : (state.is(state.TUTORIAL_INTRO, state.TUTORIAL_GAME, state.TUTORIAL_POST_GAME)) ? "Following the tutorial"
-        : (state.is(state.WAITING_FREEPLAY, state.WAITING_LAN_GUEST, state.WAITING_LAN_HOST, state.WAITING_LOCAL)) ? "Waiting for start"
-        : undefined;
+        setInterval(() => {
+            const discordState = (state.current === state.PLAYING_LOCAL) ? "Playing locally"
+                : (state.current === state.PLAYING_LAN) ? "Playing multiplayer"
+                    : (state.current === state.PLAYING_FREEPLAY) ? "Freeplay mode"
+                        : (state.current === state.WATCHING_REPLAY) ? "Watching a replay"
+                            : (state.is(state.TUTORIAL_INTRO, state.TUTORIAL_GAME, state.TUTORIAL_POST_GAME)) ? "Following the tutorial"
+                                : (state.is(state.WAITING_FREEPLAY, state.WAITING_LAN_GUEST, state.WAITING_LAN_HOST, state.WAITING_LOCAL)) ? "Waiting for start"
+                                    : undefined;
 
-        let partySize;
-        let partyMax;
-        let startTimestamp;
-        if (game && game.players) {
-            partySize = game.players.filter(p => p && p.connected).length;
-            partyMax = (state.is(state.WAITING_LOCAL, state.PLAYING_LOCAL)) ? 4 : game.players.length;
-            if (game.startedOn > 0) startTimestamp = game.startedOn;
-        }
+            let partySize;
+            let partyMax;
+            let startTimestamp;
+            if (game && game.players) {
+                partySize = game.players.filter(p => p && p.connected).length;
+                partyMax = (state.is(state.WAITING_LOCAL, state.PLAYING_LOCAL)) ? 4 : game.players.length;
+                if (game.startedOn > 0) startTimestamp = game.startedOn;
+            }
 
-        ipcRenderer.send("discord-activity-update",
-            discordState,
-            (playerIndex > -1) ? playerIndex : config.appearance.preferredColor,
-            config.appearance.playerName,
-            partySize,
-            partyMax,
-            startTimestamp
-        );
-    }, 15000);
+            ipcRenderer.send("discord-activity-update",
+                discordState,
+                (playerIndex > -1) ? playerIndex : config.appearance.preferredColor,
+                config.appearance.playerName,
+                partySize,
+                partyMax,
+                startTimestamp
+            );
+        }, 15000);
+    }
+
+    events.onStatsList =(stats) => statistics = stats;
 
     addEventListener("keydown", (e) => {
         const key = e.key.toLowerCase();
@@ -2132,8 +2168,10 @@ addEventListener("DOMContentLoaded", async () => {
             button.onclick();
             audio._play(audio.click_back);
         } else if (key === "v" && e.ctrlKey && Input.getInputById("Username").focused) {
-            Input.getInputById("Username").value += clipboard.readText();
-            Input.getInputById("Username").value = Input.getInputById("Username").value.slice(0, Input.getInputById("Username").maxLength);
+            readClipboard().then(v => {
+                Input.getInputById("Username").value += v;
+                Input.getInputById("Username").value = Input.getInputById("Username").value.slice(0, Input.getInputById("Username").maxLength);
+            });
         } else if (key === "backspace" && e.ctrlKey && Input.getInputById("Username").focused) {
             Input.getInputById("Username").value = "";
         } else if (key === config.controls.gameMenu.toLowerCase() && !gameMenu.holdingKey && isInGame) {
@@ -2141,9 +2179,12 @@ addEventListener("DOMContentLoaded", async () => {
             gameMenu.toggle();
         }
 
-        if (key === "f1") shell.openExternal("https://github.com/NM-Games/super-splash-bros-2/blob/main/README.md");
-        else if (key === "f11") ipcRenderer.send("toggle-fullscreen");
-        else if (key === "f12") ipcRenderer.send("toggle-devtools");
+        if (key === "f1") openTab("https://github.com/SweatyCircle439/super-splash-bros-3/blob/main/README.md");
+        if (!isWeb) {
+            const {ipcRenderer} = require("electron");
+            if (key === "f11") ipcRenderer.send("toggle-fullscreen");
+            else if (key === "f12") ipcRenderer.send("toggle-devtools");
+        }
 
         if (!konamiEasterEgg.isActive()) {
             if (key === konamiEasterEgg.keys[konamiEasterEgg.index].toLowerCase()) konamiEasterEgg.index++;
@@ -2254,7 +2295,7 @@ addEventListener("DOMContentLoaded", async () => {
             } else if (button.active) button.active = false;
         }
         if (banButton.hoverIndex > -1 && banButton.active) {
-            if (state.current === state.WAITING_LAN_HOST) ipcRenderer.send("lan-ban", banButton.hoverIndex);
+            if (state.current === state.WAITING_LAN_HOST) require("electron").ipcRenderer.send("lan-ban", banButton.hoverIndex);
             else if (state.current === state.WAITING_FREEPLAY) instance.ban(banButton.hoverIndex);
             audio._play(audio.ban);
         }
@@ -2306,7 +2347,7 @@ addEventListener("DOMContentLoaded", async () => {
                 : state.current;
                 isInGame = true;
                 water.flood.disable();
-                replay = new Replay();
+                if(!isWeb) replay = new Replay();
             } else if (lgame.startState === 2 && game.startState === 3) {
                 audio._play(audio.countdown);
                 bigNotification.show("3", theme.colors.bigNotification.r);
@@ -2578,7 +2619,7 @@ addEventListener("DOMContentLoaded", async () => {
                 water.imageX += image.water.width;
             }
             if (state.is(state.MAIN_MENU)) c.draw.text(c.uiC, {text: `v${versions.game}`, x: 8 + state.change.x, y: water.flood.level - 15, color: theme.colors.ui.primary, font: {size: 26}, alignment: "left"});
-            if (Replay.isSaving) c.draw.text(c.uiC, {text: `Saving replay...`, x: c.width() - 8 - state.change.x, y: c.height() - 15, color: theme.colors.text.light, font: {size: 26, shadow: true}, alignment: "right"});
+            if (!isWeb && Replay.isSaving) c.draw.text(c.uiC, {text: `Saving replay...`, x: c.width() - 8 - state.change.x, y: c.height() - 15, color: theme.colors.text.light, font: {size: 26, shadow: true}, alignment: "right"});
 
             if (theme.filters[theme.current]) c.options.filter.remove(...theme.filters[theme.current]);
         };
@@ -2989,7 +3030,7 @@ addEventListener("DOMContentLoaded", async () => {
                 c.draw.text(c.uiC, {text: statProperties[stat].label, x: c.width(0.7) - 225 + state.change.x, y: 260 + i * 30, font: {size: 22, style: "bold", shadow: true}, alignment: "left"});
                 c.draw.text(c.uiC, {text: statProperties[stat].format.replace(/^\*(.*)$/, statistics[stat].toFixed(statProperties[stat].fix) + "$1"), x: c.width(0.7) + 225 + state.change.x, y: 260 + i * 30, font: {size: 22, shadow: true}, alignment: "right"});
             }
-        } else if (state.current === state.REPLAYS_MENU) {
+        } else if (state.current === state.REPLAYS_MENU && !isWeb) {
             c.draw.text(c.uiC, {text: "REPLAYS", x: c.width(0.5) + state.change.x, y: 80, font: {size: 58, style: "bold", shadow: true}});
             c.draw.text(c.uiC, {text: "Look back at the games you played!", x: c.width(0.5) + state.change.x, y: c.height(0.125) + 30, font: {size: 18, shadow: true}});
             c.draw.text(c.uiC, {text: "WARNING: replays take up a lot of disk space, so only the last 5 games are saved.", x: c.width(0.5) + state.change.x, y: c.height(0.125) + 55, font: {size: 18, shadow: true}});
@@ -3188,7 +3229,7 @@ addEventListener("DOMContentLoaded", async () => {
 
     requestAnimationFrame(loop);
 
-    new Promise(res => {
+    if (!isWeb) new Promise(res => {
         function loop() {
             if (introLogo.progress >= introLogo.duration) {
                 clearInterval(loop);

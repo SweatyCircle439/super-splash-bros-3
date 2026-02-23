@@ -16,17 +16,19 @@ const PoopBomb = require("./PoopBomb");
 const Geyser = require("./Geyser");
 const { colors } = require("../../preload/theme");
 const { version } = require("../../../package.json");
-const { ipcRenderer } = require("electron");
+const platform = require("supersplashbros3/platform");
 
 /**
  * @type {string[]}
  */
 let argv = [];
 
-if (typeof window !== "undefined") {
+console.log(platform);
+
+if (typeof window !== "undefined" && !platform.isWeb) {
     console.log("running in preload");
     document.addEventListener("DOMContentLoaded", _ => {
-        ipcRenderer.invoke("get-argv").then(
+        require("electron").ipcRenderer.invoke("get-argv").then(
             /**
              * @param {string[]} _argv 
              */

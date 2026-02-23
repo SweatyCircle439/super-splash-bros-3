@@ -11,7 +11,9 @@
     "build-mac": "electron-builder -m",
     "build-linux": "electron-builder -l",
     "build-dedicated": "bun dedicatedServer/build.ts",
-    "postinstall": "electron-rebuild"
+    "postinstall": "electron-rebuild",
+    "create-web": "bun web/build-web.ts",
+    "host-web": "bun create-web ; caddy file-server --browse --listen=0.0.0.0:8080 --root=web/dist"
   },
   "repository": {
     "type": "git",
@@ -44,5 +46,11 @@
     "typescript": "5.9.3",
     "ws": "8.19.0",
     "zod": "4.3.6"
+  },
+  "exports": {
+    "./platform": {
+      "browser": "./platform/web.js",
+      "default": "./platform/preload.js"
+    }
   }
 }
