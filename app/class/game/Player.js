@@ -7,28 +7,25 @@ let argv = [];
 
 console.log(platform);
 
-if (typeof window !== "undefined" && !platform.isWeb) {
-    console.log("running in preload");
-    document.addEventListener("DOMContentLoaded", _ => {
-        require("electron").ipcRenderer.invoke("get-argv").then(
-            /**
-             * @param {string[]} _argv 
-             */
-            _argv => {
-                argv = _argv;
-                console.log(argv);
-                if (argv.includes("--infinite-lives") || argv.includes("-il") || argv.includes("--debug") || argv.includes("-d")) {
-                    Player.defaultLives = Infinity;
-                }
-                for (const arg of argv) {
-                    if (arg.startsWith("--lives=")) {
-                        Player.defaultLives = parseInt(arg.split("=")[1]);
-                    }
+if (typeof document !== "undefined") document.addEventListener("DOMContentLoaded", _ => {
+    platform.argv.then(
+        /**
+         * @param {string[]} _argv
+         */
+        _argv => {
+            argv = _argv;
+            console.log(argv);
+            if (argv.includes("--infinite-lives") || argv.includes("-il") || argv.includes("--debug") || argv.includes("-d")) {
+                Player.defaultLives = Infinity;
+            }
+            for (const arg of argv) {
+                if (arg.startsWith("--lives=")) {
+                    Player.defaultLives = parseInt(arg.split("=")[1]);
                 }
             }
-        );
-    });
-}
+        }
+    );
+});
 
 class Player {
     static g = 0.6;

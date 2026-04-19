@@ -25,28 +25,26 @@ let argv = [];
 
 console.log(platform);
 
-if (typeof window !== "undefined" && !platform.isWeb) {
-    console.log("running in preload");
-    document.addEventListener("DOMContentLoaded", _ => {
-        require("electron").ipcRenderer.invoke("get-argv").then(
-            /**
-             * @param {string[]} _argv 
-             */
-            _argv => {
-                argv = _argv;
-                console.log(argv);
-                if (argv.includes("--instant-water") || argv.includes("-iw") || argv.includes("--debug") || argv.includes("-d")) {
-                    Game.floodDelay = 0;
-                }
-                for (const arg of argv) {
-                    if (arg.startsWith("--flood-delay=")) {
-                        Game.floodDelay = parseInt(arg.split("=")[1]);
-                    }
+console.log("running in preload");
+if (typeof document !== "undefined") document.addEventListener("DOMContentLoaded", _ => {
+    platform.argv.then(
+        /**
+         * @param {string[]} _argv
+         */
+        _argv => {
+            argv = _argv;
+            console.log(argv);
+            if (argv.includes("--instant-water") || argv.includes("-iw") || argv.includes("--debug") || argv.includes("-d")) {
+                Game.floodDelay = 0;
+            }
+            for (const arg of argv) {
+                if (arg.startsWith("--flood-delay=")) {
+                    Game.floodDelay = parseInt(arg.split("=")[1]);
                 }
             }
-        );
-    });
-}
+        }
+    );
+});
 
 class Game {
     static floodDelay = 90;

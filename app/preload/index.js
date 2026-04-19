@@ -235,11 +235,12 @@ const getHoverableButtons = () => {
  * @param {boolean} asHost
  * @param {string} ip
  */
-const connect = (asHost, ip = getEnteredIP().join(".")) => {
+const connect = (asHost, ip = getEnteredIP().join(".")) => new Promise(resolve => {
     socket.open({
         ip: (asHost) ? "127.0.0.1" : ip,
         appearance: config.appearance,
         onopen: (index) => {
+            resolve();
             playerIndex = index;
             connectionMessage.show("");
             state.change.to(asHost ? state.WAITING_LAN_HOST : state.WAITING_LAN_GUEST, false, () => {
@@ -276,7 +277,7 @@ const connect = (asHost, ip = getEnteredIP().join(".")) => {
             if (water.flood.enabled) water.flood.disable();
         }
     });
-};
+});
 
 /**
  * Leave the game.

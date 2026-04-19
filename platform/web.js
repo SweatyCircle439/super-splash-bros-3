@@ -6,9 +6,59 @@ const events = {
     onStatsList: (stats) => {}
 };
 
+let config = localStorage.getItem("config")? JSON.parse(localStorage.getItem("config")) : {
+    appearance: {
+        playerName: generateName(),
+        preferredColor: Math.round(Math.random() * 8),
+        powerup: Math.round(Math.random() * 8),
+    },
+    graphics: {
+        theme: "daylight",
+        fullScreen: false,
+        waterFlow: true,
+        menuSprites: true
+    },
+    controls: {
+        moveLeft: "a",
+        moveRight: "d",
+        jump: "w",
+        attack: " ",
+        launchRocket: "e",
+        activatePowerup: "q",
+        gameMenu: "Escape"
+    },
+    audio: {
+        music: true,
+        sfx: true
+    },
+    misc: {
+        recordReplays: false,
+        tutorialPrompt: true,
+    }
+};
+
 function web() {
     console.log("Web platform");
     let isFullscreen = false;
+
+    /**
+     * @type {string|null}
+     */
+    let server = null;
+    /**
+     * @type {string[]}
+     */
+    const argv = [];
+    const params = new URLSearchParams(window.location.search);
+    for (const [key, value] of params.entries()) {
+        if (key === "server") {
+            server = value;
+        }else if (value) {
+            argv.push(`--${key}=${value}`);
+        }else {
+            argv.push(`--${key}`);
+        }
+    }
 
     const port = 19189;
 
@@ -27,40 +77,12 @@ function web() {
 
     document.addEventListener('DOMContentLoaded', () => setTimeout(() => {
         console.log(events.onStart);
-        events.onStart({
-            appearance: {
-                playerName: generateName(),
-                preferredColor: Math.round(Math.random() * 8),
-                powerup: Math.round(Math.random() * 8),
-            },
-            graphics: {
-                theme: "daylight",
-                fullScreen: false,
-                waterFlow: true,
-                menuSprites: true
-            },
-            controls: {
-                moveLeft: "a",
-                moveRight: "d",
-                jump: "w",
-                attack: " ",
-                launchRocket: "e",
-                activatePowerup: "q",
-                gameMenu: "Escape"
-            },
-            audio: {
-                music: true,
-                sfx: true
-            },
-            misc: {
-                recordReplays: false,
-                tutorialPrompt: true,
-            }
-        }, version, 0, innerWidth, null);
+        events.onStart(config, version, 0, innerWidth, server);
         console.log("emitted start");
-    }, 100));
+    }, 1000));
 
     window.addEventListener("beforeunload", e => {
+        localStorage.setItem("config", JSON.stringify(config));
         let closed = false;
         events.onQuitCheck(() => closed = true);
         if (!closed) e.preventDefault();
@@ -81,7 +103,10 @@ function web() {
         showItemInFolder: (path) => undefined,
         Replay: null,
         events,
-        updateConfig: (config) => {},
+        updateConfig: (_config) => {
+            config = _config;
+            localStorage.setItem("config", JSON.stringify(config));
+        },
         toggleFullscreen: () => {
             if (isFullscreen) {
                 document.exitFullscreen();
@@ -92,6 +117,7 @@ function web() {
         },
         quit: () => window.close(),
         updateStats: (stats, pi) => {},
+        argv: Promise.resolve(argv),
     }
 }
 

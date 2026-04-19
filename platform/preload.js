@@ -38,6 +38,7 @@ function preload() {
         toggleFullscreen: () => ipcRenderer.send("toggle-fullscreen"),
         quit: () => ipcRenderer.send("quit"),
         updateStats: (stats, pi) => ipcRenderer.send("update-stats", stats, pi),
+        argv: ipcRenderer? ipcRenderer.invoke("get-argv") : Promise.resolve([]),
     };
 }
 

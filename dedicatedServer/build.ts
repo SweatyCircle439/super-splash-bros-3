@@ -16,8 +16,8 @@ const builtInScheme = z.object({
     Config: z.any()
 });
 
-const fmap = new Map<string, Blob>(
-    await Promise.all(Array.from(glob.scanSync(path.join(import.meta.dirname, "builtInPlugins")))
+const fmap = new Map<string, Blob|string>([
+    ...await Promise.all(Array.from(glob.scanSync(path.join(import.meta.dirname, "builtInPlugins")))
         .map(async v => {
             const tomlLocation = path.join(import.meta.dirname, "builtInPlugins", v);
             const tomlFile = await Bun.file(tomlLocation).text();
@@ -35,8 +35,9 @@ const fmap = new Map<string, Blob>(
             }, {compress: "gzip"}).blob();
             await Bun.write(path.join(import.meta.dirname, `dist/${conf.Plugin.id}.SSB3Plugin.gz`), archive);
             return [`${conf.Plugin.id}.SSB3Plugin.gz`, archive];
-        })) as [string, Blob][]
-);
+        })) as [string, Blob][],
+    [path.join(import.meta.dirname, "../platform/preload.js"), await Bun.file(path.join(import.meta.dirname, "../platform/dedicated.js")).text()]
+]);
 
 console.log(Object.fromEntries(fmap));
 
