@@ -152,6 +152,8 @@ class Game {
     snowStormActive = false;
     /** @type {ServerEmitter|null} */
     server
+    /** @type {{x: number, y: number, w: number, h: number, age: number}[]} */
+    slimeAreas = [];
 
     /**
      * @constructor
@@ -363,7 +365,7 @@ class Game {
         }
 
         for (const p1 of this.getPlayers()) {
-            p1.update(this.theme);
+            p1.update(this);
             const platform = {
                 x: this.supply.item?.x,
                 y: this.supply.item?.y,
@@ -724,6 +726,29 @@ class Game {
                 this.snowStormActive = false;
             }).bind(this), 10000);
         }
+
+        if (this.theme === "slime" && Math.random() < 0.001) {
+            const numSlimes = Math.round(Math.random() * 5);
+
+            for (let i = 0; i < numSlimes; i++) {
+                const platform = Player.platforms[Math.floor(Math.random() * Player.platforms.length)];
+                const x = platform.x + Math.random() * platform.w;
+                const w = Math.random() * (platform.w - (x - platform.x));
+
+                const h = 10 + Math.random() * 10;
+                const y = platform.y - h;
+                if (w > 10) this.slimeAreas.push({x, y, w, h, age: 0});
+            }
+        }
+
+        for (const slimeArea of this.slimeAreas) {
+            slimeArea.age++;
+
+            if (slimeArea.age > 1280) {
+                this.slimeAreas.splice(this.slimeAreas.indexOf(slimeArea), 1);
+            }
+        }
+
         if (this.snowStormActive) {
             for (const p of this.players) {
                 if (!p) continue
@@ -760,6 +785,24 @@ class Game {
             p.updateCoordinates();
             if (this.dummyDifficulty > 0 && this.hostIndex !== p.index) p.keys.attack = p.keys.rocket = false;
         }
+    }
+
+    /** checks if a rectangular area is colliding with slime
+     * @param {number} x1 the top left corner x position of the area
+     * @param {number} y1 the top left corner y position of the area
+     * @param {number} x2 the bottom right corner x position of the area
+     * @param {number} y2 the bottom right corner y position of the area
+     */
+    isCollidingWithSlime(x1, y1, x2, y2) {
+        for (const slimeArea of this.slimeAreas) {
+            if (
+                x1 < slimeArea.x + slimeArea.w &&
+                y1 < slimeArea.y + slimeArea.h &&
+                x2 > slimeArea.x &&
+                y2 > slimeArea.y
+            ) return true;
+        }
+        return false;
     }
 
     /** Export the game to clients.
@@ -820,7 +863,8 @@ class Game {
             flooded: (this.floodLevel === Game.floodMaxLevel),
             banCount: this.blacklist.length,
             remaining,
-            snowStormActive: this.snowStormActive
+            snowStormActive: this.snowStormActive,
+            slimeAreas: this.slimeAreas
         };
     }
 }

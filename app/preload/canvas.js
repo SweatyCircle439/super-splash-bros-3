@@ -24,10 +24,13 @@ const backgroundCanvas = new OffscreenCanvas(innerWidth, innerHeight);
 const backgroundC = backgroundCanvas.getContext("2d");
 const fastUiCanvas = new OffscreenCanvas(innerWidth, innerHeight);
 const fastUiC = fastUiCanvas.getContext("2d");
+const slimeCanvas = new OffscreenCanvas(innerWidth, innerHeight);
+const slimeC = slimeCanvas.getContext("2d");
 const allContexts = [c, smokeC, uiC, platformC, waterC, backgroundC, fastUiC];
 
 const update = () => {
-    canvas.width = fastUiCanvas.width =
+    canvas.width = slimeCanvas.width =
+        fastUiCanvas.width =
         backgroundCanvas.width =
         waterCanvas.width = 
         platformCanvas.width = 
@@ -35,7 +38,8 @@ const update = () => {
         smokeCanvas.width = 
         realCanvas.width = 
         innerWidth;
-    canvas.height = fastUiCanvas.height =
+    canvas.height = slimeCanvas.height =
+        fastUiCanvas.height =
         backgroundCanvas.height =
         waterCanvas.height =
         platformCanvas.height = 
@@ -623,6 +627,7 @@ module.exports = {
             realC.drawImage(backgroundCanvas, 0, 0);
             realC.drawImage(platformCanvas, offsetX, offsetY);
             realC.drawImage(canvas, offsetX, offsetY);
+            realC.drawImage(slimeCanvas, offsetX, offsetY);
             if (waterBehindUI) realC.drawImage(waterCanvas, 0, 0);
             realC.drawImage(smokeCanvas, 0, 0);
             realC.drawImage(uiCanvas, offsetX, offsetY);
@@ -636,5 +641,6 @@ module.exports = {
     platformC,
     waterC,
     backgroundC,
-    fastUiC
+    fastUiC,
+    slimeC
 };

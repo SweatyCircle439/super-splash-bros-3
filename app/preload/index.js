@@ -671,7 +671,7 @@ const replayActions = {
 
 let frames = 0;
 let game = socket.getGame();
-/** @type {game} */
+/** @type {Game} */
 let lgame;
 /** @type {Game} */
 let instance;
@@ -2902,6 +2902,19 @@ addEventListener("DOMContentLoaded", async () => {
                 }
 
                 i++;
+            }
+
+            c.clear(c.slimeC);
+
+            for (const slimeArea of game.slimeAreas) {
+                c.draw.fill.rect(
+                    c.slimeC,
+                    `#8cff5c${(255 - Math.min(slimeArea.age * 2, 2550) / 10).toString(16)}`,
+                    slimeArea.x + offset.x,
+                    slimeArea.y + offset.y,
+                    slimeArea.w,
+                    slimeArea.h
+                );
             }
 
             const m = Math.max(0, Math.floor(game.remaining / 60));

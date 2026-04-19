@@ -272,10 +272,10 @@ class Player {
     }
 
     /** Update a player. Collision detection between players is done in the Game class.
-     * @param {import("./Game").Themes} theme 
+     * @param {import("./Game").Game} game
      */
-    update(theme) {
-        this.theme = theme;
+    update(game) {
+        this.theme = game.theme;
         // this.deceleration = theme === "snowy" ? 1 : 1.05;
         if (this.lives > 0 && this.connected) {
             this.x += this.vx;
@@ -299,7 +299,14 @@ class Player {
                 this.vy += Player.g / 2;
             }
 
-            if (this.keys.jump && !this.jump.heldKey && this.jump.used < Player.maxJumps && !this.hasPowerup(Player.powerup.SQUASH) && !this.parachuteDeployed) {
+            if (
+                this.keys.jump &&
+                !this.jump.heldKey &&
+                this.jump.used < Player.maxJumps &&
+                !this.hasPowerup(Player.powerup.SQUASH) &&
+                !this.parachuteDeployed &&
+                !game.isCollidingWithSlime(this.x, this.y, this.x + this.size, this.y + this.size)
+            ) {
                 this.jump.active = true;
                 this.jump.used++;
                 this.y -= 2;
@@ -338,6 +345,12 @@ class Player {
                 }
             }
         }
+
+        if (game.isCollidingWithSlime(this.x, this.y, this.x + this.size, this.y + this.size)) {
+            this.vx /= 1.15;
+            this.vy /= 1.15;
+        }
+
         if (!this.powerup.active) this.exclusivePlatform = null;
         if (this.exclusivePlatform) this.exclusivePlatform.update(this);
     }
